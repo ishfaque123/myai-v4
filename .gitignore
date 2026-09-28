@@ -2,7 +2,10 @@
 .env.*
 *.key
 *.pem
+*.gguf
+*.npz
 credentials.json
 secrets.json
 __pycache__/
 *.pyc
+memory/sessions/*.json
