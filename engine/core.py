@@ -71,10 +71,12 @@ def build_prompt(user_message, history):
 
 def build_system_prompt(history):
     lines = SYSTEM_LINES.copy()
-    lines.extend(["", "Recent conversation:"])
-    for item in history[-2:]:
-        lines.append(f"User: {item.get('user', '')}")
-        lines.append(f"Nivora AI: {item.get('ai', '')}")
+    recent = history[-2:]
+    if recent:
+        lines.extend(["", "Recent conversation:"])
+        for item in recent:
+            lines.append(f"User: {item.get('user', '')}")
+            lines.append(f"Nivora AI: {item.get('ai', '')}")
     return "\n".join(lines)
 
 
