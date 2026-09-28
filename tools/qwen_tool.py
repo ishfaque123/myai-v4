@@ -62,11 +62,13 @@ def extract_answer(stdout, user_message):
         if not stripped:
             cleaned.append(line)
             continue
-        if all(0x2580 <= ord(ch) <= 0x259F for ch in stripped):
+        if re.fullmatch(r"[\s\u2580-\u259F]+", stripped):
             continue
         if re.match(r"^(?:Loading model\.\.\.|build\s*:|model\s*:|ftype\s*:|modalities\s*:)", stripped, re.I):
             continue
         if re.match(r"^\[\s*Prompt\s*:", stripped, re.I):
+            continue
+        if re.match(r"^available commands:\s*$", stripped, re.I):
             continue
         if re.match(r"^/(?:exit|regen|clear|read|glob)\b", stripped, re.I):
             continue
