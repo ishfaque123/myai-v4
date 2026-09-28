@@ -2,10 +2,10 @@ import re
 
 DATE_PATTERNS = (
     re.compile(r"\b\d{4}-\d{2}-\d{2}\b"),
-    re.compile(r"\b\d{2}/\d{2}/\d{4}\b"),
+    re.compile(r"\b\d{1,2}[/.-]\d{1,2}[/.-]\d{4}\b"),
     re.compile(r"\b\d{2}-\d{2}-\d{2}\b"),
     re.compile(r"\b\d{4}-\d{2}\b"),
-    re.compile(r"\b\d{2}-\d{4}\b"),
+    re.compile(r"\b\d{1,2}[/-]\d{4}\b"),
 )
 
 NUMBER = r"\d+(?:\.\d+)?"
@@ -97,7 +97,7 @@ def calculate(text):
     if re.search(r"\d[.]\s*$", expression):
         expression = expression[:-1]
     tokens = _tokenize(expression)
-    if tokens is None:
+    if tokens is None or len(tokens) < 3:
         return None
     try:
         result = _evaluate(tokens)
