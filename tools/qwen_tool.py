@@ -1,40 +1,57 @@
-import subprocess
+import os
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
-MODEL_PATH = Path.home() / "MyAI" / "models" / "Qwen3-0.6B-Q8_0.gguf"
+MODEL_PATH = Path(
+    os.getenv(
+        "NIVORA_MODEL_PATH",
+        str(Path.home() / "MyAI" / "models" / "Qwen3-0.6B-Q8_0.gguf"),
+    )
+)
+LLAMA_CLI = os.getenv("LLAMA_CLI", "llama-cli")
+
 
 def ask_qwen(question, timeout=120):
-    prompt = (
-        "/no_think\n"
-        "You are MyAI, a helpful multilingual assistant. "
-        "Reply naturally, briefly (1-2 sentences), in the same language as the user. "
-        f"User: {question}\nAI:"
-    )
+    if not MODEL_PATH.is_file() or not shutil.which(LLAMA_CLI):
+        return None
+
+    prompt = str(question).strip()
+    if not prompt:
+        return None
+
     try:
         result = subprocess.run(
             [
-                "llama-cli",
+                LLAMA_CLI,
                 "-m", str(MODEL_PATH),
-                "-no-cnv",
+                "-st",
                 "-c", "2048",
-                "-n", "100",
+                "-n", "256",
                 "--temp", "0.7",
                 "--top-p", "0.9",
-                "-p", prompt
+                "--no-display-prompt",
+                "-p", prompt,
             ],
             capture_output=True,
             text=True,
-            timeout=timeout
+            timeout=timeout,
+            check=False,
         )
-        output = result.stdout
-        output = output.split("AI:")[-1]
-        output = re.sub(r"\[.*?\]", "", output, flags=re.DOTALL)
-        output = re.split(r"(User:|>|\[end)", output)[0].strip()
-        return output if output else None
-    except Exception as e:
-        print("Qwen error:", e)
+    except (OSError, subprocess.SubprocessError):
         return None
 
+    output = result.stdout.strip()
+    if not output:
+        return None
+
+    output = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", output)
+    output = re.sub(r"^\s*(Nivora AI|AI)\s*:\s*", "", output, flags=re.IGNORECASE)
+    output = re.split(r"\n\s*(User|Nivora AI|AI)\s*:", output, maxsplit=1)[0]
+    return output.strip() or None
+
+
 if __name__ == "__main__":
-    print(ask_qwen("Pakistan ka capital kya hai?"))
+    answer = ask_qwen("Pakistan ka capital kya hai?")
+    print(answer or "Qwen model/llama-cli not available.")
