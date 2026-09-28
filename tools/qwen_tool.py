@@ -46,9 +46,10 @@ def ask_qwen(question, timeout=120):
     except (OSError, subprocess.SubprocessError):
         return None
 
-    # On some Termux llama.cpp builds, generated text is written to stderr
-    # together with the interactive terminal UI. Prefer stdout, then stderr.
-    output = result.stdout.strip() or result.stderr.strip()
+    # Termux llama.cpp can split prompt/UI and generated text across stdout/stderr.
+    # Combine both streams before parsing so a non-empty prompt stream cannot hide
+    # the actual generated answer in the other stream.
+    output = "\n".join(part for part in (result.stdout, result.stderr) if part).strip()
     if not output:
         return None
 
