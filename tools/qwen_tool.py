@@ -65,6 +65,12 @@ def ask_qwen(question, timeout=120):
         else:
             text = re.sub(r"^\s*(AI)\s*:\s*", "", text, flags=re.IGNORECASE)
 
+        # llama-cli writes its interactive prompt as "> <user prompt>" before the generated answer.
+        # Keep only the text after the final echoed prompt and before any exit marker.
+        prompt_matches = list(re.finditer(r"(?m)^\s*>\s*.*$", text))
+        if prompt_matches:
+            text = text[prompt_matches[-1].end():]
+
         # llama-cli may echo the full prompt before the generated answer.
         # When that happens, discard everything through the final prompt marker.
         if "You are Nivora AI" in text:
