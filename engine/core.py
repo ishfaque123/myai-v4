@@ -64,8 +64,7 @@ def build_prompt(user_message, history):
         lines.append(f"Nivora AI: {item.get('ai', '')}")
     lines.append(f"User: {user_message}")
     lines.append("Nivora AI:")
-    return "
-".join(lines)
+    return "\n".join(lines)
 
 
 def _needs_cloud(user_message):
@@ -76,9 +75,7 @@ def _needs_cloud(user_message):
         "analyze", "research", "reason", "solve", "problem", "code",
         "program", "python", "javascript", "api", "database", "github",
         "legal", "law", "policy", "business", "strategy", "technical",
-        "detail", "explain karo", "kyun", "kaise", "farq", "mukabla",
-        "tajziya", "masla", "qanoon", "business plan", "technical",
-        "سمجھاؤ", "کیوں", "کیسے", "فرق", "تجزیہ", "قانون",
+        "detail", "explain this", "explain it",
     )
 
     if len(text) >= 220:
@@ -98,7 +95,7 @@ def chat(message, session_id="default"):
 
     if len(user) > MAX_MESSAGE_CHARS:
         return {
-            "reply": f"Message bohat lamba hai. Maximum {MAX_MESSAGE_CHARS} characters allowed hain.",
+            "reply": f"Message is too long. Maximum {MAX_MESSAGE_CHARS} characters are allowed.",
             "session_id": sid,
         }
 
@@ -115,7 +112,7 @@ def chat(message, session_id="default"):
         answer = ask_qwen(build_prompt(user, history))
 
     if not answer:
-        answer = "Sorry, abhi response generate nahi ho saka. Please dobara try karein."
+        answer = "Sorry, I could not generate a response right now. Please try again."
 
     history.append({"user": user, "ai": answer})
     save_memory(sid, history)
