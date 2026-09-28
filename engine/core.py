@@ -1,10 +1,14 @@
 import json
 import re
+import sys
 from pathlib import Path
-from tools.qwen_tool import ask_qwen
-from tools.calculator import calculate
 
 BASE = Path(__file__).resolve().parent.parent
+if str(BASE) not in sys.path:
+    sys.path.insert(0, str(BASE))
+
+from tools.qwen_tool import ask_qwen
+from tools.calculator import calculate
 MEMORY_DIR = BASE / "memory" / "sessions"
 MEMORY_DIR.mkdir(parents=True, exist_ok=True)
 
