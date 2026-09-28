@@ -59,11 +59,11 @@ def ask_qwen(question, timeout=120):
         text = re.sub(r"(?m)^\s*\[\s*Prompt:.*$", "", text)
         text = re.sub(r"(?m)^\s*Exiting\.\.\.\s*$", "", text)
 
-        # If the model output contains the full Nivora prompt, keep only the
-        # generated text after the final prompt marker.
-        marker_matches = list(re.finditer(r"(?im)^\s*Nivora AI\s*:\s*", text))
-        if marker_matches:
-            text = text[marker_matches[-1].end():]
+        # llama-cli may print its banner and interactive prompt even in single-turn mode.
+        # Keep only text generated after the final prompt marker.
+        prompt_matches = list(re.finditer(r"(?m)^\\s*>\\s*.*$", text))
+        if prompt_matches:
+            text = text[prompt_matches[-1].end():]
 
         # The CLI prompt marker may appear before the model output. If the
         # stream contains our full Nivora prompt, use the final generated marker.
