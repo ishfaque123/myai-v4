@@ -33,11 +33,13 @@ def ask_qwen(question, timeout=120):
                 "--temp", "0.4",
                 "--top-p", "0.8",
                 "--min-p", "0.05",
+                "--no-display-prompt",
                 "--no-show-timings",
                 "--color", "off",
                 "-p", prompt,
             ],
             capture_output=True,
+            stdin=subprocess.DEVNULL,
             text=True,
             timeout=timeout,
             check=False,
@@ -59,7 +61,7 @@ def ask_qwen(question, timeout=120):
 
         # llama-cli may print its banner and interactive prompt even in single-turn mode.
         # Keep only text generated after the final prompt marker.
-        prompt_matches = list(re.finditer(r"(?m)^\\s*>\\s*.*$", text))
+        prompt_matches = list(re.finditer(r"(?m)^\s*>\s*.*$", text))
         if prompt_matches:
             text = text[prompt_matches[-1].end():]
 
