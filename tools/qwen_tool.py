@@ -46,37 +46,49 @@ def ask_qwen(question, timeout=120):
     except (OSError, subprocess.SubprocessError):
         return None
 
-    # Termux llama.cpp can split prompt/UI and generated text across stdout/stderr.
-    # Combine both streams before parsing so a non-empty prompt stream cannot hide
-    # the actual generated answer in the other stream.
-    output = "\n".join(part for part in (result.stdout, result.stderr) if part).strip()
-    if not output:
+    def extract_answer(stream):
+        text = (stream or "").strip()
+        if not text:
+            return ""
+
+        text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
+        text = re.sub(r"(?m)^\s*(Loading model\.\.\.|build\s*:.*|model\s*:.*|ftype\s*:.*|modalities\s*:.*)\s*$", "", text)
+        text = re.sub(r"(?m)^\s*available commands:\s*$", "", text)
+        text = re.sub(r"(?m)^\s*[/]?(exit|regen|clear|read|glob)\b.*$", "", text)
+        text = re.sub(r"(?m)^\s*\[\s*Prompt:.*$", "", text)
+        text = re.sub(r"(?m)^\s*Exiting\.\.\.\s*$", "", text)
+
+        markers = list(re.finditer(r"(?im)^\s*Nivora AI\s*:\s*", text))
+        if markers:
+            text = text[markers[-1].end():]
+        else:
+            text = re.sub(r"^\s*(AI)\s*:\s*", "", text, flags=re.IGNORECASE)
+
+        text = text.strip()
+        if text.startswith("> "):
+            text = text[2:].lstrip()
+
+        text = re.sub(r"(?m)^\s*\[\s*Prompt:.*$", "", text)
+        text = re.sub(r"(?m)^\s*Exiting\.\.\.\s*$", "", text)
+        return text.strip()
+
+    # Parse stdout and stderr independently. They can contain different parts
+    # of llama-cli; combining them first can place a prompt marker after the
+    # generated answer and make the parser discard the real response.
+    candidates = [
+        extract_answer(result.stdout),
+        extract_answer(result.stderr),
+    ]
+    candidates = [item for item in candidates if item]
+    if not candidates:
         return None
 
-    output = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", output)
+    # Prefer the candidate that does not look like an echoed user prompt.
+    for candidate in candidates:
+        if not re.search(r"(?im)^\s*User\s*:", candidate):
+            return candidate
 
-    # Remove terminal metadata that can surround the generated answer.
-    output = re.sub(r"(?m)^\s*(Loading model\.\.\.|build\s*:.*|model\s*:.*|ftype\s*:.*|modalities\s*:.*)\s*$", "", output)
-    output = re.sub(r"(?m)^\s*available commands:\s*$", "", output)
-    output = re.sub(r"(?m)^\s*[/]?(exit|regen|clear|read|glob)\b.*$", "", output)
-    output = re.sub(r"(?m)^\s*\[\s*Prompt:.*$", "", output)
-    output = re.sub(r"(?m)^\s*Exiting\.\.\.\s*$", "", output)
-
-    # llama-cli may echo the complete prompt/history before the answer.
-    # The final Nivora AI marker is the assistant turn we need.
-    markers = list(re.finditer(r"(?im)^\s*Nivora AI\s*:\s*", output))
-    if markers:
-        output = output[markers[-1].end():]
-
-    # Fallback for output that starts directly with the generated answer.
-    output = output.strip()
-    if output.startswith("> "):
-        output = output[2:].lstrip()
-
-    output = re.sub(r"(?m)^\s*\[\s*Prompt:.*$", "", output)
-    output = re.sub(r"(?m)^\s*Exiting\.\.\.\s*$", "", output)
-
-    return output.strip() or None
+    return candidates[-1]
 
 
 if __name__ == "__main__":
