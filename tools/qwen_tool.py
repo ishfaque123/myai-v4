@@ -65,12 +65,16 @@ def ask_qwen(question, timeout=120):
         else:
             text = re.sub(r"^\s*(AI)\s*:\s*", "", text, flags=re.IGNORECASE)
 
-        # llama-cli may echo its prompt or banner even when prompt display is
-        # disabled. Keep only the generated answer for the Nivora UI.
+        # llama-cli may echo the full prompt before the generated answer.
+        # When that happens, discard everything through the final prompt marker.
         if "You are Nivora AI" in text:
             marker = text.rfind("Nivora AI:")
             if marker >= 0:
                 text = text[marker + len("Nivora AI:"):]
+
+        # Never expose an echoed system prompt in the user-facing response.
+        if "You are Nivora AI" in text:
+            text = text.split("You are Nivora AI", 1)[0].strip()
 
         text = text.strip()
         if text.startswith("> "):
