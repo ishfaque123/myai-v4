@@ -33,8 +33,6 @@ def ask_qwen(question, timeout=120):
                 "--temp", "0.4",
                 "--top-p", "0.8",
                 "--min-p", "0.05",
-                "--no-display-prompt",
-                "--simple-io",
                 "--no-show-timings",
                 "--color", "off",
                 "-p", prompt,
