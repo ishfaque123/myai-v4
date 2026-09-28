@@ -46,13 +46,17 @@ def save_memory(session_id, history):
 
 def build_prompt(user_message, history):
     lines = [
-        "You are Nivora AI, a helpful, accurate and friendly multilingual AI assistant.",
-        "Reply naturally in the same language as the user.",
-        "Keep answers concise unless the user asks for detail.",
-        "Do not invent facts. If you are unsure, say so.",
+        "You are Nivora AI, a helpful and accurate multilingual AI assistant.",
+        "Your name is Nivora AI. If asked your name, say: My name is Nivora AI.",
+        "Reply in the same language and style as the user.",
+        "Answer the exact question directly and completely.",
+        "For factual questions, give the complete factual answer, not a partial sentence.",
+        "Keep answers short and natural unless the user asks for detail.",
+        "Do not repeat the user's question or leave sentences incomplete.",
+        "If unsure about a fact, say so instead of inventing an answer.",
         "",
     ]
-    for item in history[-6:]:
+    for item in history[-2:]:
         lines.append(f"User: {item.get('user', '')}")
         lines.append(f"Nivora AI: {item.get('ai', '')}")
     lines.append(f"User: {user_message}")
