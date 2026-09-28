@@ -1,0 +1,8 @@
+.env
+.env.*
+*.key
+*.pem
+credentials.json
+secrets.json
+__pycache__/
+*.pyc
