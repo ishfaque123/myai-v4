@@ -43,24 +43,34 @@ def ask_qwen(question, timeout=120):
     except (OSError, subprocess.SubprocessError):
         return None
 
-    output = result.stdout.strip()
+    # On some Termux llama.cpp builds, generated text is written to stderr
+    # together with the interactive terminal UI. Prefer stdout, then stderr.
+    output = result.stdout.strip() or result.stderr.strip()
     if not output:
         return None
 
     output = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", output)
 
-    # llama-cli can return the generated answer together with its terminal UI.
-    # Keep only the text after the final prompt marker when present.
-    if "\n> " in output:
-        output = output.rsplit("\n> ", 1)[-1].strip()
-
-    # Remove llama.cpp metadata/UI lines if they are still present.
+    # Remove terminal metadata that can surround the generated answer.
     output = re.sub(r"(?m)^\s*(Loading model\.\.\.|build\s*:.*|model\s*:.*|ftype\s*:.*|modalities\s*:.*)\s*$", "", output)
-    output = re.sub(r"(?m)^\s*available commands:.*$", "", output)
+    output = re.sub(r"(?m)^\s*available commands:\s*$", "", output)
+    output = re.sub(r"(?m)^\s*[/]?(exit|regen|clear|read|glob)\b.*$", "", output)
+    output = re.sub(r"(?m)^\s*\[\s*Prompt:.*$", "", output)
+    output = re.sub(r"(?m)^\s*Exiting\.\.\.\s*$", "", output)
 
-    # Keep the generated response, not echoed conversation/history.
-    output = re.sub(r"^\s*(Nivora AI|AI)\s*:\s*", "", output, flags=re.IGNORECASE)
-    output = re.split(r"\n\s*(User|Nivora AI|AI)\s*:", output, maxsplit=1)[0]
+    # llama-cli may echo the complete prompt/history before the answer.
+    # The final Nivora AI marker is the assistant turn we need.
+    markers = list(re.finditer(r"(?im)^\s*Nivora AI\s*:\s*", output))
+    if markers:
+        output = output[markers[-1].end():]
+
+    # Fallback for output that starts directly with the generated answer.
+    output = output.strip()
+    if output.startswith("> "):
+        output = output[2:].lstrip()
+
+    output = re.sub(r"(?m)^\s*\[\s*Prompt:.*$", "", output)
+    output = re.sub(r"(?m)^\s*Exiting\.\.\.\s*$", "", output)
 
     return output.strip() or None
 
