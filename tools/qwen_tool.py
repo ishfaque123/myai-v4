@@ -43,11 +43,6 @@ def extract_answer(stdout, user_message):
         if exact_prompt and exact_prompt.match(line):
             prompt_index = index
             break
-    if prompt_index is None:
-        for index, line in enumerate(lines):
-            if re.match(r"^\s*>\s+", line):
-                prompt_index = index
-                break
     if prompt_index is not None:
         lines = lines[prompt_index + 1:]
 
