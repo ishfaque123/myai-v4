@@ -59,11 +59,11 @@ def ask_qwen(question, timeout=120):
         text = re.sub(r"(?m)^\s*\[\s*Prompt:.*$", "", text)
         text = re.sub(r"(?m)^\s*Exiting\.\.\.\s*$", "", text)
 
-        markers = list(re.finditer(r"(?im)^\s*Nivora AI\s*:\s*", text))
-        if markers:
-            text = text[markers[-1].end():]
-        else:
-            text = re.sub(r"^\s*(AI)\s*:\s*", "", text, flags=re.IGNORECASE)
+        # If the model output contains the full Nivora prompt, keep only the
+        # generated text after the final prompt marker.
+        marker_matches = list(re.finditer(r"(?im)^\s*Nivora AI\s*:\s*", text))
+        if marker_matches:
+            text = text[marker_matches[-1].end():]
 
         # llama-cli writes its interactive prompt as "> <user prompt>" before the generated answer.
         # Keep only the text after the final echoed prompt and before any exit marker.
