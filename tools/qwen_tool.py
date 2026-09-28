@@ -48,8 +48,20 @@ def ask_qwen(question, timeout=120):
         return None
 
     output = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", output)
+
+    # llama-cli can return the generated answer together with its terminal UI.
+    # Keep only the text after the final prompt marker when present.
+    if "\n> " in output:
+        output = output.rsplit("\n> ", 1)[-1].strip()
+
+    # Remove llama.cpp metadata/UI lines if they are still present.
+    output = re.sub(r"(?m)^\s*(Loading model\.\.\.|build\s*:.*|model\s*:.*|ftype\s*:.*|modalities\s*:.*)\s*$", "", output)
+    output = re.sub(r"(?m)^\s*available commands:.*$", "", output)
+
+    # Keep the generated response, not echoed conversation/history.
     output = re.sub(r"^\s*(Nivora AI|AI)\s*:\s*", "", output, flags=re.IGNORECASE)
     output = re.split(r"\n\s*(User|Nivora AI|AI)\s*:", output, maxsplit=1)[0]
+
     return output.strip() or None
 
 
