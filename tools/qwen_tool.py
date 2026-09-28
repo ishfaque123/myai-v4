@@ -27,6 +27,7 @@ def ask_qwen(question, timeout=120):
                 LLAMA_CLI,
                 "-m", str(MODEL_PATH),
                 "-st",
+                "--reasoning", "off",
                 "-c", "2048",
                 "-n", "256",
                 "--temp", "0.7",
