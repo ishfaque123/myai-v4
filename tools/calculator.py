@@ -79,13 +79,17 @@ def _evaluate(tokens):
 def calculate(text):
     original = str(text or "")
     working = _blank_dates(original.lower())
-    working = re.sub(r"\bmultiply(?:ied)?\s+by\b", "*", working)
+    working = re.sub(r"\bmultipl(?:y|ied)\s+by\b", "*", working)
     working = re.sub(r"\bdivided\s+by\b", "/", working)
     working = WORD_OPS.sub(lambda match: {"plus": "+", "minus": "-", "times": "*", "multiply": "*", "multiplied": "*", "divided": "/"}[match.group(0).lower()], working)
     working = re.sub(r"(?<=\d)\.$", "", working.strip())
 
     match = re.search(rf"(?<![\w,.]){TOKEN}(?:\s*{TOKEN})*(?![\w,])", working)
     if not match:
+        return None
+    before = working[:match.start()].rstrip()
+    after = working[match.end():].lstrip()
+    if re.search(r"\d,\d", original) or (after and after[0] in "+-*/") or (before and before[-1] in "+-*/"):
         return None
     expression = match.group(0)
     if re.search(r"\d,\d", expression):
