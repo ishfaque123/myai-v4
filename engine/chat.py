@@ -23,7 +23,7 @@ def main():
             path = _memory_path(session_id)
             if path.exists():
                 path.unlink()
-            print("Nivora AI: Memory clear kar di.")
+            print("Nivora AI: Memory cleared.")
             continue
 
         result = chat(user, session_id)
