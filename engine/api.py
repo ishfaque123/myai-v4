@@ -25,10 +25,6 @@ def chat_endpoint():
     return jsonify(chat(message, session_id))
 
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
-
-
 @app.post("/feedback")
 def feedback_endpoint():
     data = request.get_json(silent=True)
@@ -45,3 +41,7 @@ def feedback_endpoint():
         return jsonify({"error": "rating must be 1 or -1"}), 400
 
     return jsonify({"status": "saved", "feedback": record})
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
