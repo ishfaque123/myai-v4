@@ -9,3 +9,4 @@ secrets.json
 __pycache__/
 *.pyc
 memory/sessions/*.json
+feedback/*.jsonl
