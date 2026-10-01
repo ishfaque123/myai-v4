@@ -5,10 +5,36 @@ BASE = Path(__file__).resolve().parent.parent
 FEEDBACK_FILE = BASE / "feedback" / "feedback.jsonl"
 OUTPUT_FILE = BASE / "training" / "approved_dataset.jsonl"
 
+MAX_USER_CHARS = 4000
+MAX_ASSISTANT_CHARS = 12000
+ERROR_MARKERS = (
+    "could not generate a response",
+    "something went wrong",
+    "please try again",
+)
+
+def _clean(value, limit):
+    return " ".join(str(value or "").strip().split())[:limit].strip()
+
+def _valid_example(item):
+    if item.get("rating") != 1:
+        return None
+    user = _clean(item.get("user_message"), MAX_USER_CHARS)
+    assistant = _clean(item.get("assistant_response"), MAX_ASSISTANT_CHARS)
+    if not user or not assistant:
+        return None
+    if any(marker in assistant.lower() for marker in ERROR_MARKERS):
+        return None
+    if len(assistant) < 2:
+        return None
+    return user, assistant
+
 def build_dataset():
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     if not FEEDBACK_FILE.exists():
+        OUTPUT_FILE.write_text("", encoding="utf-8")
         return 0
+
     written = 0
     seen = set()
     with FEEDBACK_FILE.open("r", encoding="utf-8") as src, OUTPUT_FILE.open("w", encoding="utf-8") as dst:
@@ -17,12 +43,12 @@ def build_dataset():
                 item = json.loads(line)
             except (ValueError, TypeError):
                 continue
-            if item.get("rating") != 1:
+            if not isinstance(item, dict):
                 continue
-            user = str(item.get("user_message") or "").strip()
-            assistant = str(item.get("assistant_response") or "").strip()
-            if not user or not assistant:
+            example = _valid_example(item)
+            if example is None:
                 continue
+            user, assistant = example
             key = (user, assistant)
             if key in seen:
                 continue
