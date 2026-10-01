@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nivora AI — Brain Monitor</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:900px;margin:0 auto;padding:20px;background:#101114;color:#eee}
+.card{background:#1a1c21;border:1px solid #30333b;border-radius:14px;padding:16px;margin:12px 0}
+textarea,input,button{font:inherit;border-radius:10px;border:1px solid #444;padding:10px;background:#0e0f12;color:#fff}
+textarea{width:100%;box-sizing:border-box;min-height:90px}button{cursor:pointer;margin-top:10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.stat{padding:12px;background:#111318;border-radius:10px}
+pre{white-space:pre-wrap;word-break:break-word}
+small{color:#aaa}
+</style>
+</head>
+<body>
+<h1>Nivora AI — Brain Monitor</h1>
+<small>Shows safe high-level routing/agent information, not hidden chain-of-thought.</small>
+<div class="card">
+<input id="session" value="dashboard-test" placeholder="Session ID">
+<textarea id="message" placeholder="Ask Nivora AI something..."></textarea>
+<button onclick="ask()">Send</button>
+</div>
+<div class="card"><h2>Decision Trace</h2><div id="trace" class="grid"></div></div>
+<div class="card"><h2>Response</h2><pre id="answer">No request yet.</pre></div>
+<div class="card"><h2>Evaluation</h2><pre id="evaluation">No evaluation yet.</pre></div>
+<div class="card"><h2>Feedback</h2><pre id="feedback">Loading...</pre></div>
+<script>
+async function ask(){
+ const message=document.getElementById('message').value;
+ const session_id=document.getElementById('session').value||'dashboard-test';
+ if(!message.trim()) return;
+ document.getElementById('answer').textContent='Thinking...';
+ const r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message,session_id})});
+ const d=await r.json();
+ document.getElementById('answer').textContent=d.reply||JSON.stringify(d,null,2);
+ document.getElementById('evaluation').textContent=JSON.stringify(d.evaluation||{},null,2);
+ const t=d.trace||{};
+ document.getElementById('trace').innerHTML=Object.entries(t).map(([k,v])=>'<div class="stat"><b>'+k+'</b><br>'+String(v)+'</div>').join('');
+ loadFeedback();
+}
+async function loadFeedback(){
+ const r=await fetch('/feedback/summary'); const d=await r.json();
+ document.getElementById('feedback').textContent=JSON.stringify(d,null,2);
+}
+loadFeedback();
+</script>
+</body>
+</html>
