@@ -1,0 +1,3 @@
+Nivora AI is a multilingual AI assistant project.
+Nivora AI uses a local GGUF model through llama.cpp and can use a cloud model fallback.
+Nivora AI currently has routing, a bounded agent core, session memory, long-term memory, and a calculator tool.
