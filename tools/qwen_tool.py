@@ -1,9 +1,8 @@
 import os
-import pty
 import re
 import shutil
 import subprocess
-import time
+import shlex
 from pathlib import Path
 
 
@@ -17,81 +16,26 @@ LLAMA_CLI = os.getenv("LLAMA_CLI", "llama-cli")
 
 
 def _run_llama_cli(args, timeout):
-    """Run llama-cli through a PTY so Termux's terminal-only output is captured."""
-    master_fd = None
-    slave_fd = None
-    process = None
-    chunks = []
-
-    try:
-        master_fd, slave_fd = pty.openpty()
-        process = subprocess.Popen(
-            args,
-            stdin=slave_fd,
-            stdout=slave_fd,
-            stderr=slave_fd,
-            close_fds=True,
-        )
-        os.close(slave_fd)
-        slave_fd = None
-
-        deadline = time.monotonic() + timeout
-
-        while True:
-            if time.monotonic() >= deadline:
-                process.kill()
-                raise subprocess.TimeoutExpired(args, timeout)
-
-            import select
-
-            readable, _, _ = select.select([master_fd], [], [], 0.25)
-            if readable:
-                try:
-                    data = os.read(master_fd, 8192)
-                except OSError:
-                    data = b""
-                if data:
-                    chunks.append(data.decode("utf-8", errors="replace"))
-
-            if process.poll() is not None:
-                # Drain any final bytes emitted just before process exit.
-                while True:
-                    import select
-
-                    readable, _, _ = select.select([master_fd], [], [], 0)
-                    if not readable:
-                        break
-                    try:
-                        data = os.read(master_fd, 8192)
-                    except OSError:
-                        break
-                    if not data:
-                        break
-                    chunks.append(data.decode("utf-8", errors="replace"))
-                break
-
-        process.wait(timeout=2)
-        return "".join(chunks)
-
-    except (OSError, subprocess.SubprocessError):
-        if process is not None and process.poll() is None:
-            process.kill()
-            try:
-                process.wait(timeout=2)
-            except subprocess.SubprocessError:
-                pass
+    """Capture llama-cli output on Termux using the proven 'script' PTY wrapper."""
+    script_bin = shutil.which("script")
+    if not script_bin:
         return None
-    finally:
-        if slave_fd is not None:
-            try:
-                os.close(slave_fd)
-            except OSError:
-                pass
-        if master_fd is not None:
-            try:
-                os.close(master_fd)
-            except OSError:
-                pass
+
+    command = shlex.join(args)
+    try:
+        result = subprocess.run(
+            [script_bin, "-q", "-c", command, "/dev/null"],
+            capture_output=True,
+            stdin=subprocess.DEVNULL,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+    # Termux's script utility returns the interactive terminal stream on stdout.
+    return result.stdout or result.stderr or ""
 
 
 def _extract_answer(stream):
