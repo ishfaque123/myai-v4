@@ -9,7 +9,7 @@ FEEDBACK_FILE = FEEDBACK_DIR / "feedback.jsonl"
 MAX_COMMENT_CHARS = 1000
 
 
-def save_feedback(session_id, rating, comment=""):
+def save_feedback(session_id, rating, comment="", user_message="", assistant_response=""):
     rating = int(rating)
     if rating not in (1, -1):
         raise ValueError("rating must be 1 or -1")
@@ -20,6 +20,8 @@ def save_feedback(session_id, rating, comment=""):
         "session_id": str(session_id or "default")[:64],
         "rating": rating,
         "comment": str(comment or "")[:MAX_COMMENT_CHARS],
+        "user_message": str(user_message or "")[:4000],
+        "assistant_response": str(assistant_response or "")[:12000],
     }
 
     with FEEDBACK_FILE.open("a", encoding="utf-8") as handle:
