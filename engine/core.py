@@ -14,7 +14,6 @@ from tools.calculator import calculate
 from router import route_message
 from memory.long_term import build_memory_context, remember_from_message
 from tools.rag import build_rag_context
-from feedback.store import save_feedback
 from feedback.evaluator import evaluate_response
 
 MEMORY_DIR = BASE / "memory" / "sessions"
@@ -149,6 +148,8 @@ def chat(message, session_id="default"):
         answer = "Sorry, I could not generate a response right now. Please try again."
         route = route_name or "failed"
 
+    evaluation = evaluate_response(user, answer)
+
     history.append({"user": user, "ai": answer})
     save_memory(sid, history)
     remember_from_message(sid, user)
@@ -158,4 +159,5 @@ def chat(message, session_id="default"):
         "session_id": sid,
         "route": route,
         "agent_steps": result.steps,
+        "evaluation": evaluation,
     }
