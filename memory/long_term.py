@@ -9,7 +9,6 @@ PROFILE_DIR.mkdir(parents=True, exist_ok=True)
 MAX_FACTS = 30
 MAX_FACT_CHARS = 240
 
-# Only store explicit, non-sensitive preference/context statements.
 _PATTERNS = (
     (re.compile(r"\bmy name is\s+(.+)$", re.I), "name"),
     (re.compile(r"\bi(?:'m| am)\s+from\s+(.+)$", re.I), "location"),
