@@ -7,11 +7,11 @@ BASE = Path(__file__).resolve().parent.parent
 if str(BASE) not in sys.path:
     sys.path.insert(0, str(BASE))
 
-from agent import AgentCore, Tool
+from engine.agent import AgentCore, Tool
 from tools.qwen_tool import ask_qwen
 from tools.cloud_ai import ask_cloud
 from tools.calculator import calculate
-from router import route_message
+from engine.router import route_message
 from memory.long_term import build_memory_context, remember_from_message
 from tools.rag import build_rag_context
 from feedback.evaluator import evaluate_response
