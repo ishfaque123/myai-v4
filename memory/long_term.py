@@ -16,6 +16,12 @@ _PATTERNS = (
     (re.compile(r"\bi (?:use|work with)\s+(.+)$", re.I), "context"),
 )
 
+_STYLE_PATTERNS = (
+    (re.compile(r"\b(?:only|just)\s+sindhi\s+roman(?:\s+words)?\b", re.I), "language_style: Sindhi Roman"),
+    (re.compile(r"\bsindhi\s+roman(?:\s+words)?\b", re.I), "language_style: Sindhi Roman"),
+    (re.compile(r"\broman\s+sindhi\b", re.I), "language_style: Sindhi Roman"),
+)
+
 _BLOCKED = re.compile(
     r"\b(password|passcode|otp|one[- ]time password|secret|api key|token|"
     r"credit card|debit card|bank account|cnic|social security|medical|"
@@ -23,15 +29,12 @@ _BLOCKED = re.compile(
     re.I,
 )
 
-
 def _safe_id(value):
     value = re.sub(r"[^a-zA-Z0-9_-]", "", str(value or "default"))[:64]
     return value or "default"
 
-
 def _path(session_id):
     return PROFILE_DIR / f"{_safe_id(session_id)}.json"
-
 
 def load_profile(session_id="default"):
     path = _path(session_id)
@@ -48,7 +51,6 @@ def load_profile(session_id="default"):
     except (OSError, ValueError, TypeError):
         return {"facts": []}
 
-
 def save_profile(session_id, profile):
     facts = profile.get("facts", [])[-MAX_FACTS:]
     _path(session_id).write_text(
@@ -56,11 +58,14 @@ def save_profile(session_id, profile):
         encoding="utf-8",
     )
 
-
 def extract_fact(message):
     text = " ".join((message or "").strip().split())
     if not text or _BLOCKED.search(text):
         return None
+
+    for pattern, fact in _STYLE_PATTERNS:
+        if pattern.search(text):
+            return fact
 
     for pattern, label in _PATTERNS:
         match = pattern.search(text)
@@ -69,7 +74,6 @@ def extract_fact(message):
             if 1 <= len(value) <= MAX_FACT_CHARS:
                 return f"{label}: {value}"
     return None
-
 
 def remember_from_message(session_id, message):
     fact = extract_fact(message)
@@ -84,7 +88,6 @@ def remember_from_message(session_id, message):
         save_profile(session_id, profile)
         return True
     return False
-
 
 def build_memory_context(session_id):
     facts = load_profile(session_id).get("facts", [])
