@@ -131,6 +131,7 @@ def chat(message, session_id="default"):
     prompt = build_prompt(user, history, sid)
 
     route_name = None
+    decision = route_message(user)
 
     def generate(_):
         nonlocal route_name
@@ -160,4 +161,14 @@ def chat(message, session_id="default"):
         "route": route,
         "agent_steps": result.steps,
         "evaluation": evaluation,
+        "trace": {
+            "router_target": decision.target,
+            "router_reason": decision.reason,
+            "router_confidence": decision.confidence,
+            "memory_used": bool(build_memory_context(sid)),
+            "rag_used": bool(build_rag_context(user)),
+            "agent_status": result.status,
+            "tool_used": result.tool,
+            "model_route": route,
+        },
     }
