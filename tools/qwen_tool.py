@@ -57,6 +57,10 @@ def _extract_answer(stream):
     text = re.sub(r"(?m)^\s*\[\s*Prompt:.*$", "", text)
     text = re.sub(r"(?m)^\s*Exiting\.\.\.\s*$", "", text)
 
+    # Hide the model reasoning trace; Nivora returns only the final answer.
+    text = re.sub(r"(?is)<think>.*?</think>", "", text)
+    text = re.sub(r"(?is)<think>.*$", "", text)
+
     # Current llama-cli prints the generated response after this marker.
     marker_matches = list(re.finditer(r"(?im)^\s*Nivora AI\s*:\s*", text))
     if marker_matches:
@@ -91,9 +95,10 @@ def ask_qwen(question, timeout=120):
         LLAMA_CLI,
         "-m", str(MODEL_PATH),
         "--single-turn",
-        "--reasoning", "off",
+        "--reasoning", "on",
+        "--reasoning-budget", "128",
         "-c", "2048",
-        "-n", "256",
+        "-n", "384",
         "--temp", "0.4",
         "--top-p", "0.8",
         "--min-p", "0.05",
