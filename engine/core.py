@@ -60,7 +60,7 @@ def save_memory(session_id, history):
     )
 
 
-def build_prompt(user_message, history):
+def build_prompt(user_message, history, session_id):
     lines = [
         "You are Nivora AI, a helpful and accurate multilingual AI assistant.",
         "Your name is Nivora AI. If asked your name, say: My name is Nivora AI.",
@@ -73,10 +73,11 @@ def build_prompt(user_message, history):
         "Founder of Nivora AI: Ishfaque Ahmed, from Thari Mirwah, Khairpur, Sindh, Pakistan.",
         "",
     ]
-    memory_context = build_memory_context(sid)
+
+    memory_context = build_memory_context(session_id)
     if memory_context:
         lines.extend([memory_context, ""])
-    ]
+
     for item in history[-2:]:
         lines.append(f"User: {item.get('user', '')}")
         lines.append(f"Nivora AI: {item.get('ai', '')}")
@@ -116,7 +117,7 @@ def chat(message, session_id="default"):
         }
 
     history = load_memory(sid)
-    prompt = build_prompt(user, history)
+    prompt = build_prompt(user, history, sid)
 
     route_name = None
 
