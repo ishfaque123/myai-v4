@@ -1,8 +1,11 @@
 import os
+import pty
 import re
 import shutil
 import subprocess
+import time
 from pathlib import Path
+
 
 MODEL_PATH = Path(
     os.getenv(
@@ -13,6 +16,125 @@ MODEL_PATH = Path(
 LLAMA_CLI = os.getenv("LLAMA_CLI", "llama-cli")
 
 
+def _run_llama_cli(args, timeout):
+    """Run llama-cli through a PTY so Termux's terminal-only output is captured."""
+    master_fd = None
+    slave_fd = None
+    process = None
+    chunks = []
+
+    try:
+        master_fd, slave_fd = pty.openpty()
+        process = subprocess.Popen(
+            args,
+            stdin=slave_fd,
+            stdout=slave_fd,
+            stderr=slave_fd,
+            close_fds=True,
+        )
+        os.close(slave_fd)
+        slave_fd = None
+
+        deadline = time.monotonic() + timeout
+
+        while True:
+            if time.monotonic() >= deadline:
+                process.kill()
+                raise subprocess.TimeoutExpired(args, timeout)
+
+            import select
+
+            readable, _, _ = select.select([master_fd], [], [], 0.25)
+            if readable:
+                try:
+                    data = os.read(master_fd, 8192)
+                except OSError:
+                    data = b""
+                if data:
+                    chunks.append(data.decode("utf-8", errors="replace"))
+
+            if process.poll() is not None:
+                # Drain any final bytes emitted just before process exit.
+                while True:
+                    import select
+
+                    readable, _, _ = select.select([master_fd], [], [], 0)
+                    if not readable:
+                        break
+                    try:
+                        data = os.read(master_fd, 8192)
+                    except OSError:
+                        break
+                    if not data:
+                        break
+                    chunks.append(data.decode("utf-8", errors="replace"))
+                break
+
+        process.wait(timeout=2)
+        return "".join(chunks)
+
+    except (OSError, subprocess.SubprocessError):
+        if process is not None and process.poll() is None:
+            process.kill()
+            try:
+                process.wait(timeout=2)
+            except subprocess.SubprocessError:
+                pass
+        return None
+    finally:
+        if slave_fd is not None:
+            try:
+                os.close(slave_fd)
+            except OSError:
+                pass
+        if master_fd is not None:
+            try:
+                os.close(master_fd)
+            except OSError:
+                pass
+
+
+def _extract_answer(stream):
+    text = (stream or "").strip()
+    if not text:
+        return ""
+
+    # PTY output can contain terminal control sequences and carriage returns.
+    text = text.replace("\r", "")
+    text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
+    text = re.sub(
+        r"(?m)^\s*(Loading model\.\.\.|build\s*:.*|model\s*:.*|"
+        r"ftype\s*:.*|modalities\s*:.*)\s*$",
+        "",
+        text,
+    )
+    text = re.sub(r"(?m)^\s*available commands:\s*$", "", text)
+    text = re.sub(r"(?m)^\s*[/]?(exit|regen|clear|read|glob)\b.*$", "", text)
+    text = re.sub(r"(?m)^\s*\[\s*Prompt:.*$", "", text)
+    text = re.sub(r"(?m)^\s*Exiting\.\.\.\s*$", "", text)
+
+    # Current llama-cli prints the generated response after this marker.
+    marker_matches = list(re.finditer(r"(?im)^\s*Nivora AI\s*:\s*", text))
+    if marker_matches:
+        text = text[marker_matches[-1].end():]
+    else:
+        prompt_matches = list(re.finditer(r"(?m)^\s*>\s*.*$", text))
+        if prompt_matches:
+            text = text[prompt_matches[-1].end():]
+
+    # Remove an accidentally echoed system prompt.
+    if "You are Nivora AI" in text:
+        marker = text.rfind("Nivora AI:")
+        if marker >= 0:
+            text = text[marker + len("Nivora AI:"):]
+        else:
+            text = text.split("You are Nivora AI", 1)[-1]
+
+    text = re.sub(r"(?m)^\s*\[\s*Prompt:.*$", "", text)
+    text = re.sub(r"(?m)^\s*Exiting\.\.\.\s*$", "", text)
+    return text.strip()
+
+
 def ask_qwen(question, timeout=120):
     if not MODEL_PATH.is_file() or not shutil.which(LLAMA_CLI):
         return None
@@ -21,89 +143,24 @@ def ask_qwen(question, timeout=120):
     if not prompt:
         return None
 
-    try:
-        result = subprocess.run(
-            [
-                LLAMA_CLI,
-                "-m", str(MODEL_PATH),
-                "--single-turn",
-                "--reasoning", "off",
-                "-c", "2048",
-                "-n", "256",
-                "--temp", "0.4",
-                "--top-p", "0.8",
-                "--min-p", "0.05",
-                "--no-show-timings",
-                "--color", "off",
-                "-p", prompt + "\nNivora AI:",
-            ],
-            capture_output=True,
-            stdin=subprocess.DEVNULL,
-            text=True,
-            timeout=timeout,
-            check=False,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return None
-
-    def extract_answer(stream):
-        text = (stream or "").strip()
-        if not text:
-            return ""
-
-        text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
-        text = re.sub(
-            r"(?m)^\s*(Loading model\.\.\.|build\s*:.*|model\s*:.*|"
-            r"ftype\s*:.*|modalities\s*:.*)\s*$",
-            "",
-            text,
-        )
-        text = re.sub(r"(?m)^\s*available commands:\s*$", "", text)
-        text = re.sub(r"(?m)^\s*[/]?(exit|regen|clear|read|glob)\b.*$", "", text)
-        text = re.sub(r"(?m)^\s*\[\s*Prompt:.*$", "", text)
-        text = re.sub(r"(?m)^\s*Exiting\.\.\.\s*$", "", text)
-
-        # In current llama-cli output, the generated answer follows the
-        # final "Nivora AI:" marker. This marker can also appear without the
-        # full Nivora system prompt, so parse it unconditionally.
-        marker_matches = list(re.finditer(r"(?im)^\s*Nivora AI\s*:\s*", text))
-        if marker_matches:
-            text = text[marker_matches[-1].end():]
-        else:
-            # Fallback for output that only has the interactive prompt.
-            prompt_matches = list(re.finditer(r"(?m)^\s*>\s*.*$", text))
-            if prompt_matches:
-                text = text[prompt_matches[-1].end():]
-
-        # Never expose an echoed system prompt in the user-facing response.
-        if "You are Nivora AI" in text:
-            marker = text.rfind("Nivora AI:")
-            if marker >= 0:
-                text = text[marker + len("Nivora AI:"):]
-            else:
-                text = text.split("You are Nivora AI", 1)[-1]
-
-        text = re.sub(r"(?m)^\s*\[\s*Prompt:.*$", "", text)
-        text = re.sub(r"(?m)^\s*Exiting\.\.\.\s*$", "", text)
-        return text.strip()
-
-    # Parse stdout and stderr independently. They can contain different parts
-    # of llama-cli; combining them first can place a prompt marker after the
-    # generated answer and make the parser discard the real response.
-    candidates = [
-        extract_answer(result.stdout),
-        extract_answer(result.stderr),
+    args = [
+        LLAMA_CLI,
+        "-m", str(MODEL_PATH),
+        "--single-turn",
+        "--reasoning", "off",
+        "-c", "2048",
+        "-n", "256",
+        "--temp", "0.4",
+        "--top-p", "0.8",
+        "--min-p", "0.05",
+        "--no-show-timings",
+        "--color", "off",
+        "-p", prompt + "\nNivora AI:",
     ]
-    candidates = [item for item in candidates if item]
-    if not candidates:
-        return None
 
-    # Prefer the candidate that does not look like an echoed user prompt.
-    for candidate in candidates:
-        if not re.search(r"(?im)^\s*User\s*:", candidate):
-            return candidate
-
-    return candidates[-1]
+    raw_output = _run_llama_cli(args, timeout)
+    answer = _extract_answer(raw_output)
+    return answer or None
 
 
 if __name__ == "__main__":
