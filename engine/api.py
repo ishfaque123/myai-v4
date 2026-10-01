@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, request
 from core import chat
+from feedback.store import save_feedback
 
 app = Flask(__name__)
 
@@ -26,3 +27,21 @@ def chat_endpoint():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
+
+
+@app.post("/feedback")
+def feedback_endpoint():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "JSON body required"}), 400
+
+    session_id = data.get("session_id") or request.headers.get("X-Session-ID") or "default"
+    rating = data.get("rating")
+    comment = data.get("comment", "")
+
+    try:
+        record = save_feedback(session_id, rating, comment)
+    except (TypeError, ValueError):
+        return jsonify({"error": "rating must be 1 or -1"}), 400
+
+    return jsonify({"status": "saved", "feedback": record})
