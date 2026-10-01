@@ -41,7 +41,7 @@ function escapeHtml(value){return String(value).replace(/[&<>"']/g,ch=>({"&":"&a
 function renderFormattedAnswer(bubble,text){
   const source=String(text||"");
   if(!source){bubble.textContent="";return}
-  const mathPattern=/($[\s\S]*?\$\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)|\$(?!\$)[^\n$]+?\$(?!\$))/g;
+  const mathPattern=/(\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)|\$(?!\$)[^\n$]+?\$(?!\$))/g;
   let html="",last=0,match;
   while((match=mathPattern.exec(source))){
     html+=escapeHtml(source.slice(last,match.index)).replace(/\n/g,"<br>");
