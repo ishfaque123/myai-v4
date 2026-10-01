@@ -1,10 +1,18 @@
+import sys
+import tempfile
 import unittest
+from pathlib import Path
+
+BASE = Path(__file__).resolve().parent.parent
+ENGINE = BASE / "engine"
+if str(ENGINE) not in sys.path:
+    sys.path.insert(0, str(ENGINE))
 
 from agent import AgentCore, Tool
 from memory.long_term import extract_fact
 from router import route_message
 from tools.rag import build_rag_context
-from feedback.store import save_feedback
+import feedback.store as feedback_store
 
 
 class TestNivoraSystem(unittest.TestCase):
@@ -50,9 +58,14 @@ class TestNivoraSystem(unittest.TestCase):
         self.assertIsNone(extract_fact("my password is 123456"))
 
     def test_feedback_accepts_valid_rating(self):
-        record = save_feedback("test-suite", 1, "Good")
-        self.assertEqual(record["rating"], 1)
-        self.assertEqual(record["session_id"], "test-suite")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            feedback_store.FEEDBACK_FILE = Path(temp_dir) / "feedback.jsonl"
+            feedback_store.FEEDBACK_DIR = Path(temp_dir)
+
+            record = feedback_store.save_feedback("test-suite", 1, "Good")
+            self.assertEqual(record["rating"], 1)
+            self.assertEqual(record["session_id"], "test-suite")
+            self.assertEqual(feedback_store.feedback_summary()["positive"], 1)
 
 
 if __name__ == "__main__":
