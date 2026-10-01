@@ -47,7 +47,7 @@ function renderFormattedAnswer(bubble,text){
     html+=escapeHtml(source.slice(last,match.index)).replace(/\n/g,"<br>");
     const raw=match[0];
     let tex=raw,display=false;
-    if(raw.startsWith("$")&&raw.endsWith("$")){tex=raw.slice(2,-2);display=true}
+    if(raw.startsWith("$")&&raw.endsWith("$")&&raw.length>=4&&raw[1]==="$"&&raw[raw.length-2]==="$"){tex=raw.slice(2,-2);display=true}
     else if(raw.startsWith("\\[")&&raw.endsWith("\\]")){tex=raw.slice(2,-2);display=true}
     else if(raw.startsWith("\\(")&&raw.endsWith("\\)")){tex=raw.slice(2,-2)}
     else if(raw.startsWith("$")&&raw.endsWith("$")){tex=raw.slice(1,-1)}
