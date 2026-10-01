@@ -35,9 +35,11 @@ def feedback_endpoint():
     session_id = data.get("session_id") or request.headers.get("X-Session-ID") or "default"
     rating = data.get("rating")
     comment = data.get("comment", "")
+    user_message = data.get("user_message", "")
+    assistant_response = data.get("assistant_response", "")
 
     try:
-        record = save_feedback(session_id, rating, comment)
+        record = save_feedback(session_id, rating, comment, user_message, assistant_response)
     except (TypeError, ValueError):
         return jsonify({"error": "rating must be 1 or -1"}), 400
 
