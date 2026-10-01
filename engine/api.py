@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, request
 from engine.core import chat
-from feedback.store import save_feedback
+from feedback.store import save_feedback, feedback_summary
+from pathlib import Path
 
 app = Flask(__name__)
 
@@ -41,6 +42,19 @@ def feedback_endpoint():
         return jsonify({"error": "rating must be 1 or -1"}), 400
 
     return jsonify({"status": "saved", "feedback": record})
+
+
+@app.get("/dashboard")
+def dashboard():
+    path = Path(__file__).resolve().parent.parent / "dashboard" / "index.html"
+    if not path.exists():
+        return jsonify({"error": "dashboard not installed"}), 404
+    return path.read_text(encoding="utf-8"), 200, {"Content-Type": "text/html; charset=utf-8"}
+
+
+@app.get("/feedback/summary")
+def feedback_summary_endpoint():
+    return jsonify(feedback_summary())
 
 
 if __name__ == "__main__":
