@@ -10,6 +10,7 @@ if str(BASE) not in sys.path:
 from tools.qwen_tool import ask_qwen
 from tools.cloud_ai import ask_cloud
 from tools.calculator import calculate
+from router import route_message
 
 MEMORY_DIR = BASE / "memory" / "sessions"
 MEMORY_DIR.mkdir(parents=True, exist_ok=True)
@@ -67,26 +68,6 @@ def build_prompt(user_message, history):
     return "\n".join(lines)
 
 
-def _needs_cloud(user_message):
-    text = user_message.lower().strip()
-
-    important_terms = (
-        "explain", "why", "how", "compare", "difference", "analysis",
-        "analyze", "research", "reason", "solve", "problem", "code",
-        "program", "python", "javascript", "api", "database", "github",
-        "legal", "law", "policy", "business", "strategy", "technical",
-        "detail", "explain this", "explain it",
-    )
-
-    if len(text) >= 220:
-        return True
-
-    if any(term in text for term in important_terms):
-        return True
-
-    return text.endswith("?") and len(text.split()) >= 14
-
-
 def chat(message, session_id="default"):
     user = (message or "").strip()
     sid = _safe_session_id(session_id)
@@ -100,20 +81,30 @@ def chat(message, session_id="default"):
         }
 
     history = load_memory(sid)
+    prompt = build_prompt(user, history)
 
     calc = calculate(user)
     if calc is not None:
         answer = calc
-    elif _needs_cloud(user):
-        answer = ask_cloud(build_prompt(user, history))
-        if not answer:
-            answer = ask_qwen(build_prompt(user, history))
+        route = "calculator"
     else:
-        answer = ask_qwen(build_prompt(user, history))
+        decision = route_message(user)
+        route = decision.target
+
+        if decision.target == "cloud":
+            answer = ask_cloud(prompt)
+            if not answer:
+                answer = ask_qwen(prompt)
+                route = "local_fallback"
+        else:
+            answer = ask_qwen(prompt)
+            if not answer:
+                answer = ask_cloud(prompt)
+                route = "cloud_fallback"
 
     if not answer:
         answer = "Sorry, I could not generate a response right now. Please try again."
 
     history.append({"user": user, "ai": answer})
     save_memory(sid, history)
-    return {"reply": answer, "session_id": sid}
+    return {"reply": answer, "session_id": sid, "route": route}
