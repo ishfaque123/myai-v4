@@ -55,11 +55,25 @@ class TestNivoraSystem(unittest.TestCase):
         context = build_rag_context("What is Nivora AI?")
         self.assertIn("Nivora AI", context)
 
+    def test_rag_ignores_common_words(self):
+        context = build_rag_context("What is the answer?")
+        self.assertEqual(context, "")
+
+    def test_rag_requires_multiple_meaningful_matches(self):
+        context = build_rag_context("Nivora")
+        self.assertEqual(context, "")
+
+        context = build_rag_context("Nivora AI")
+        self.assertIn("Nivora AI", context)
+
     def test_memory_blocks_sensitive_fact(self):
         self.assertIsNone(extract_fact("my password is 123456"))
 
     def test_response_evaluation(self):
-        result = evaluate_response("What is Nivora AI?", "Nivora AI is a multilingual AI assistant.")
+        result = evaluate_response(
+            "What is Nivora AI?",
+            "Nivora AI is a multilingual AI assistant.",
+        )
         self.assertTrue(result["passed"])
         self.assertGreaterEqual(result["score"], 0.6)
 
