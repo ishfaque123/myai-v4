@@ -1,5 +1,5 @@
 from flask import Flask, jsonify, request
-from core import chat
+from engine.core import chat
 from feedback.store import save_feedback
 
 app = Flask(__name__)
