@@ -13,6 +13,7 @@ from tools.cloud_ai import ask_cloud
 from tools.calculator import calculate
 from router import route_message
 from memory.long_term import build_memory_context, remember_from_message
+from tools.rag import build_rag_context
 
 MEMORY_DIR = BASE / "memory" / "sessions"
 MEMORY_DIR.mkdir(parents=True, exist_ok=True)
@@ -77,6 +78,15 @@ def build_prompt(user_message, history, session_id):
     memory_context = build_memory_context(session_id)
     if memory_context:
         lines.extend([memory_context, ""])
+
+    rag_context = build_rag_context(user_message)
+    if rag_context:
+        lines.extend([
+            rag_context,
+            "Use the relevant knowledge context when it helps answer the user's question.",
+            "Do not invent facts that are not supported by the knowledge context.",
+            "",
+        ])
 
     for item in history[-2:]:
         lines.append(f"User: {item.get('user', '')}")
