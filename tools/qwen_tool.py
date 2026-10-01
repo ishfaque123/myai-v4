@@ -52,39 +52,36 @@ def ask_qwen(question, timeout=120):
             return ""
 
         text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
-        text = re.sub(r"(?m)^\s*(Loading model\.\.\.|build\s*:.*|model\s*:.*|ftype\s*:.*|modalities\s*:.*)\s*$", "", text)
+        text = re.sub(
+            r"(?m)^\s*(Loading model\.\.\.|build\s*:.*|model\s*:.*|"
+            r"ftype\s*:.*|modalities\s*:.*)\s*$",
+            "",
+            text,
+        )
         text = re.sub(r"(?m)^\s*available commands:\s*$", "", text)
         text = re.sub(r"(?m)^\s*[/]?(exit|regen|clear|read|glob)\b.*$", "", text)
         text = re.sub(r"(?m)^\s*\[\s*Prompt:.*$", "", text)
         text = re.sub(r"(?m)^\s*Exiting\.\.\.\s*$", "", text)
 
-        # llama-cli may print its banner and interactive prompt even in single-turn mode.
-        # Keep only text generated after the final prompt marker.
-        prompt_matches = list(re.finditer(r"(?m)^\s*>\s*.*$", text))
-        if prompt_matches:
-            text = text[prompt_matches[-1].end():]
+        # In current llama-cli output, the generated answer follows the
+        # final "Nivora AI:" marker. This marker can also appear without the
+        # full Nivora system prompt, so parse it unconditionally.
+        marker_matches = list(re.finditer(r"(?im)^\s*Nivora AI\s*:\s*", text))
+        if marker_matches:
+            text = text[marker_matches[-1].end():]
+        else:
+            # Fallback for output that only has the interactive prompt.
+            prompt_matches = list(re.finditer(r"(?m)^\s*>\s*.*$", text))
+            if prompt_matches:
+                text = text[prompt_matches[-1].end():]
 
-        # The CLI prompt marker may appear before the model output. If the
-        # stream contains our full Nivora prompt, use the final generated marker.
-        if "You are Nivora AI" in text:
-            marker_matches = list(re.finditer(r"(?im)^\s*Nivora AI\s*:\s*", text))
-            if marker_matches:
-                text = text[marker_matches[-1].end():]
-
-        # llama-cli may echo the full prompt before the generated answer.
-        # When that happens, discard everything through the final prompt marker.
+        # Never expose an echoed system prompt in the user-facing response.
         if "You are Nivora AI" in text:
             marker = text.rfind("Nivora AI:")
             if marker >= 0:
                 text = text[marker + len("Nivora AI:"):]
-
-        # Never expose an echoed system prompt in the user-facing response.
-        if "You are Nivora AI" in text:
-            text = text.split("You are Nivora AI", 1)[0].strip()
-
-        text = text.strip()
-        if text.startswith("> "):
-            text = text[2:].lstrip()
+            else:
+                text = text.split("You are Nivora AI", 1)[-1]
 
         text = re.sub(r"(?m)^\s*\[\s*Prompt:.*$", "", text)
         text = re.sub(r"(?m)^\s*Exiting\.\.\.\s*$", "", text)
