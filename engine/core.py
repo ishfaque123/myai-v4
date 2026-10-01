@@ -12,6 +12,7 @@ from tools.qwen_tool import ask_qwen
 from tools.cloud_ai import ask_cloud
 from tools.calculator import calculate
 from router import route_message
+from memory.long_term import build_memory_context, remember_from_message
 
 MEMORY_DIR = BASE / "memory" / "sessions"
 MEMORY_DIR.mkdir(parents=True, exist_ok=True)
@@ -71,6 +72,10 @@ def build_prompt(user_message, history):
         "If unsure about a fact, say so instead of inventing an answer.",
         "Founder of Nivora AI: Ishfaque Ahmed, from Thari Mirwah, Khairpur, Sindh, Pakistan.",
         "",
+    ]
+    memory_context = build_memory_context(sid)
+    if memory_context:
+        lines.extend([memory_context, ""])
     ]
     for item in history[-2:]:
         lines.append(f"User: {item.get('user', '')}")
@@ -133,6 +138,7 @@ def chat(message, session_id="default"):
 
     history.append({"user": user, "ai": answer})
     save_memory(sid, history)
+    remember_from_message(sid, user)
 
     return {
         "reply": answer,
