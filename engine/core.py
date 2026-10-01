@@ -7,6 +7,7 @@ BASE = Path(__file__).resolve().parent.parent
 if str(BASE) not in sys.path:
     sys.path.insert(0, str(BASE))
 
+from agent import AgentCore, Tool
 from tools.qwen_tool import ask_qwen
 from tools.cloud_ai import ask_cloud
 from tools.calculator import calculate
@@ -17,6 +18,17 @@ MEMORY_DIR.mkdir(parents=True, exist_ok=True)
 
 MAX_HISTORY = 12
 MAX_MESSAGE_CHARS = 4000
+
+AGENT = AgentCore(
+    tools=(
+        Tool(
+            name="calculator",
+            description="Solve basic arithmetic expressions.",
+            run=calculate,
+        ),
+    ),
+    max_steps=2,
+)
 
 
 def _safe_session_id(session_id):
@@ -68,9 +80,27 @@ def build_prompt(user_message, history):
     return "\n".join(lines)
 
 
+def _generate_for_route(user, prompt):
+    decision = route_message(user)
+
+    if decision.target == "cloud":
+        answer = ask_cloud(prompt)
+        if answer:
+            return answer, "cloud"
+        answer = ask_qwen(prompt)
+        return answer, "local_fallback" if answer else "cloud_failed"
+
+    answer = ask_qwen(prompt)
+    if answer:
+        return answer, "local"
+    answer = ask_cloud(prompt)
+    return answer, "cloud_fallback" if answer else "local_failed"
+
+
 def chat(message, session_id="default"):
     user = (message or "").strip()
     sid = _safe_session_id(session_id)
+
     if not user:
         return {"reply": "Please enter a message.", "session_id": sid}
 
@@ -83,28 +113,30 @@ def chat(message, session_id="default"):
     history = load_memory(sid)
     prompt = build_prompt(user, history)
 
-    calc = calculate(user)
-    if calc is not None:
-        answer = calc
-        route = "calculator"
+    route_name = None
+
+    def generate(_):
+        nonlocal route_name
+        answer, route_name = _generate_for_route(user, prompt)
+        return answer
+
+    result = AGENT.run(user, generate)
+
+    if result.answer:
+        answer = result.answer
+        if result.tool:
+            route_name = result.tool
+        route = route_name or result.status
     else:
-        decision = route_message(user)
-        route = decision.target
-
-        if decision.target == "cloud":
-            answer = ask_cloud(prompt)
-            if not answer:
-                answer = ask_qwen(prompt)
-                route = "local_fallback"
-        else:
-            answer = ask_qwen(prompt)
-            if not answer:
-                answer = ask_cloud(prompt)
-                route = "cloud_fallback"
-
-    if not answer:
         answer = "Sorry, I could not generate a response right now. Please try again."
+        route = route_name or "failed"
 
     history.append({"user": user, "ai": answer})
     save_memory(sid, history)
-    return {"reply": answer, "session_id": sid, "route": route}
+
+    return {
+        "reply": answer,
+        "session_id": sid,
+        "route": route,
+        "agent_steps": result.steps,
+    }
