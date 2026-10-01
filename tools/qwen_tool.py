@@ -98,6 +98,7 @@ def ask_qwen(question, timeout=120):
         "--top-p", "0.8",
         "--min-p", "0.05",
         "--no-show-timings",
+        "--no-display-prompt",
         "--color", "off",
         "-p", prompt + "\nNivora AI:",
     ]
