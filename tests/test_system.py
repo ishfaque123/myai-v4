@@ -12,6 +12,7 @@ from agent import AgentCore, Tool
 from memory.long_term import extract_fact
 from router import route_message
 from tools.rag import build_rag_context
+from feedback.evaluator import evaluate_response
 import feedback.store as feedback_store
 
 
@@ -56,6 +57,11 @@ class TestNivoraSystem(unittest.TestCase):
 
     def test_memory_blocks_sensitive_fact(self):
         self.assertIsNone(extract_fact("my password is 123456"))
+
+    def test_response_evaluation(self):
+        result = evaluate_response("What is Nivora AI?", "Nivora AI is a multilingual AI assistant.")
+        self.assertTrue(result["passed"])
+        self.assertGreaterEqual(result["score"], 0.6)
 
     def test_feedback_accepts_valid_rating(self):
         with tempfile.TemporaryDirectory() as temp_dir:
