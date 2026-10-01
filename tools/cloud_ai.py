@@ -42,11 +42,14 @@ def ask_cloud(prompt, timeout=60):
         method="POST",
     )
 
-    try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            data = json.loads(response.read().decode("utf-8"))
-    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError, ValueError):
-        return None
+    for attempt in range(2):
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                data = json.loads(response.read().decode("utf-8"))
+            break
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError, ValueError):
+            if attempt == 1:
+                return None
 
     choices = data.get("choices") or []
     if not choices:
