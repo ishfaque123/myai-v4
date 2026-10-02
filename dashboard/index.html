@@ -100,7 +100,6 @@ else if(chats.length){const latest=chats[chats.length-1];sessionId=latest.id;loa
   bubble.className="bubble thinking";bubble.innerHTML='<span>Generating</span><span class="thinking-dots"><i></i><i></i><i></i></span>';
   return new Promise(resolve=>setTimeout(()=>{bubble.className="bubble";renderFormattedAnswer(bubble,text);scrollBottom();resolve({row,bubble})},Math.max(180,Math.min(600,String(text||"").length*3))));
 }
-function removeThinking(){const row=document.getElementById("thinkingRow");if(row)row.remove()}
 function loadChat(id){const c=chats.find(x=>x.id===id);if(!c)return;sessionId=id;removeThinking();document.getElementById("messages").innerHTML="";if(!c.messages.length){newChat();return}c.messages.forEach(m=>addMessage(m.role,m.text));save();renderHistory()}
 function showTrace(t){window.nivoraLastTrace=t||{};}
 function comingSoon(name){toggleSide(false);addMessage("ai",name+" is coming soon.");}
