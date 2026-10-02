@@ -33,7 +33,7 @@ AGENT = AgentCore(
             run=calculate,
         ),
     ),
-    max_steps=2,
+    max_steps=3,
 )
 
 
@@ -270,7 +270,11 @@ def chat(message, session_id="default"):
         answer, route_name = _generate_for_route(user, prompt)
         return answer
 
-    result = AGENT.run(user, generate)
+    result = AGENT.run(user, generate, verify=lambda value: is_usable_response(
+        user,
+        value,
+        style_checker=lambda item: _response_matches_style(item, _language_style(user)),
+    ))
 
     if result.answer:
         answer = result.answer
