@@ -12,6 +12,7 @@ class TestCloudTools(unittest.TestCase):
         self.assertIn("calculator", names)
         self.assertIn("knowledge_search", names)
         self.assertIn("web_search", names)
+        self.assertIn("web_research", names)
 
     def test_calculator_tool_executes(self):
         result = _execute_tool_call(
@@ -72,3 +73,16 @@ class TestCloudTools(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    def test_registry_rejects_invalid_arguments(self):
+        from tools.registry import execute_tool
+        self.assertIsNone(execute_tool("calculator", {"expression": 123}))
+        self.assertIsNone(execute_tool("web_search", {"query": ""}))
+
+    def test_registry_executes_valid_calculator(self):
+        from tools.registry import execute_tool
+        self.assertEqual(execute_tool("calculator", {"expression": "12 * 3"}), "36")
+
+    def test_web_research_rejects_invalid_url(self):
+        from tools.web_research import fetch_webpage
+        self.assertEqual(fetch_webpage("not-a-url"), "")
