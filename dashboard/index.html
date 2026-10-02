@@ -100,7 +100,6 @@ else if(chats.length){const latest=chats[chats.length-1];sessionId=latest.id;loa
   bubble.className="bubble thinking";bubble.innerHTML='<span>Generating</span><span class="thinking-dots"><i></i><i></i><i></i></span>';
   return new Promise(resolve=>setTimeout(()=>{bubble.className="bubble";renderFormattedAnswer(bubble,text);scrollBottom();resolve({row,bubble})},Math.max(180,Math.min(600,String(text||"").length*3))));
 }
-function addThinking(){const empty=document.getElementById("empty");if(empty)empty.remove();const row=document.createElement("div");row.className="msg ai";row.id="thinkingRow";const avatar=document.createElement("div");avatar.className="avatar";avatar.textContent="N";const content=document.createElement("div");content.className="content";const bubble=document.createElement("div");bubble.className="bubble thinking";bubble.innerHTML='<span>Generating</span><span class="thinking-dots"><i></i><i></i><i></i></span>';content.appendChild(bubble);row.append(avatar,content);document.getElementById("messages").appendChild(row);document.getElementById("chat").scrollTop=document.getElementById("chat").scrollHeight}
 function removeThinking(){const row=document.getElementById("thinkingRow");if(row)row.remove()}
 function loadChat(id){const c=chats.find(x=>x.id===id);if(!c)return;sessionId=id;removeThinking();document.getElementById("messages").innerHTML="";if(!c.messages.length){newChat();return}c.messages.forEach(m=>addMessage(m.role,m.text));save();renderHistory()}
 function showTrace(t){window.nivoraLastTrace=t||{};}
