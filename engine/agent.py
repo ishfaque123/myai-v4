@@ -20,8 +20,8 @@ class AgentResult:
 class AgentCore:
     """Small, bounded agent loop for Nivora AI.
 
-    The agent may execute registered deterministic tools first, then hand the
-    task to the selected model. It never loops indefinitely.
+    Deterministic local tools run before model generation. Cloud model
+    function-calling is handled by the cloud tool loop.
     """
 
     def __init__(self, tools=(), max_steps=2):
@@ -43,13 +43,11 @@ class AgentCore:
         if not user:
             return AgentResult(None, None, 0, "empty")
 
-        # Step 1: deterministic tools.
         if self.max_steps >= 1:
             result, tool_name = self._find_tool_result(user)
             if result is not None:
-                return AgentResult(result, tool_name, 1, "tool")
+                return AgentResult(result, tool_name, 1, "local_tool")
 
-        # Step 2: model generation.
         if self.max_steps >= 2:
             try:
                 answer = generate(user)
