@@ -70,10 +70,6 @@ class TestCloudTools(unittest.TestCase):
         )
         self.assertIsNone(result)
 
-
-if __name__ == "__main__":
-    unittest.main()
-
     def test_registry_rejects_invalid_arguments(self):
         from tools.registry import execute_tool
         self.assertIsNone(execute_tool("calculator", {"expression": 123}))
@@ -86,3 +82,7 @@ if __name__ == "__main__":
     def test_web_research_rejects_invalid_url(self):
         from tools.web_research import fetch_webpage
         self.assertEqual(fetch_webpage("not-a-url"), "")
+
+
+if __name__ == "__main__":
+    unittest.main()
