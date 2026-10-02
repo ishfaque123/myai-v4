@@ -3,84 +3,13 @@ import os
 import urllib.error
 import urllib.request
 
-from tools.calculator import calculate
-from tools.rag import build_rag_context
-from tools.web_search import format_web_search
+from tools.registry import TOOL_DEFINITIONS, execute_tool_call
 
 HF_URL = "https://router.huggingface.co/v1/chat/completions"
 HF_MODELS = (
     "openai/gpt-oss-120b:fastest",
     "openai/gpt-oss-120b:cheapest",
 )
-
-TOOL_DEFINITIONS = (
-    {
-        "type": "function",
-        "function": {
-            "name": "calculator",
-            "description": "Solve basic arithmetic expressions.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "expression": {
-                        "type": "string",
-                        "description": "Arithmetic expression to calculate.",
-                    }
-                },
-                "required": ["expression"],
-                "additionalProperties": False,
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "knowledge_search",
-            "description": "Search Nivora AI's trusted local knowledge base for relevant information.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "The knowledge question or topic to search for.",
-                    }
-                },
-                "required": ["query"],
-                "additionalProperties": False,
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "web_search",
-            "description": "Search the public web for current information and return concise source snippets.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "The user's web search query.",
-                    }
-                },
-                "required": ["query"],
-                "additionalProperties": False,
-            },
-        },
-    },
-)
-
-_TOOL_EXECUTORS = {
-    "calculator": lambda arguments: calculate(
-        str(arguments.get("expression", ""))
-    ),
-    "knowledge_search": lambda arguments: build_rag_context(
-        str(arguments.get("query", ""))
-    ),
-    "web_search": lambda arguments: format_web_search(
-        str(arguments.get("query", ""))
-    ),
-}
 
 _SYSTEM_PROMPT = (
     "You are Nivora AI, a helpful and accurate multilingual AI assistant. "
@@ -137,44 +66,6 @@ def _message_from_response(data):
 def _tool_calls(message):
     calls = (message or {}).get("tool_calls") or []
     return calls if isinstance(calls, list) else []
-
-
-def _execute_tool_call(tool_call):
-    function = (tool_call or {}).get("function") or {}
-    name = function.get("name")
-    call_id = tool_call.get("id")
-    executor = _TOOL_EXECUTORS.get(name)
-
-    if not call_id or not executor:
-        return None
-
-    raw_arguments = function.get("arguments", "{}")
-    try:
-        arguments = (
-            json.loads(raw_arguments)
-            if isinstance(raw_arguments, str)
-            else raw_arguments
-        )
-    except (TypeError, ValueError):
-        arguments = {}
-
-    if not isinstance(arguments, dict):
-        arguments = {}
-
-    try:
-        result = executor(arguments)
-    except Exception:
-        result = None
-
-    if result is None:
-        result = "Tool could not produce a result."
-
-    return {
-        "role": "tool",
-        "tool_call_id": call_id,
-        "name": name,
-        "content": str(result),
-    }
 
 
 def ask_cloud(prompt, timeout=60):
