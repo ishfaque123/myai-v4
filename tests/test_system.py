@@ -73,6 +73,31 @@ class TestNivoraSystem(unittest.TestCase):
     def test_quality_layer_rejects_empty_answer(self):
         self.assertFalse(is_usable_response("hello", ""))
 
+    def test_agent_retries_after_failed_generation(self):
+        calls = {"count": 0}
+
+        def generate(_):
+            calls["count"] += 1
+            return "" if calls["count"] == 1 else "valid answer"
+
+        result = AgentCore(max_steps=3).run(
+            "test",
+            generate,
+            verify=lambda value: value == "valid answer",
+        )
+        self.assertEqual(result.answer, "valid answer")
+        self.assertEqual(result.steps, 2)
+        self.assertEqual(result.status, "model_verified")
+
+    def test_agent_rejects_unverified_generation(self):
+        result = AgentCore(max_steps=2).run(
+            "test",
+            lambda _: "bad answer",
+            verify=lambda _: False,
+        )
+        self.assertEqual(result.status, "unverified")
+        self.assertEqual(result.steps, 2)
+
     def test_agent_uses_tool_before_model(self):
         calls = []
 
