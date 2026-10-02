@@ -9,7 +9,7 @@ if str(BASE) not in sys.path:
 
 from engine.agent import AgentCore, Tool
 from tools.qwen_tool import ask_qwen
-from tools.cloud_ai import ask_cloud
+from tools.cloud_ai import ask_cloud, ask_cloud_with_tools
 from tools.calculator import calculate
 from engine.router import route_message
 from memory.long_term import build_memory_context, remember_from_message
@@ -156,11 +156,11 @@ def _generate_for_route(user, prompt):
         return answer if answer and _response_matches_style(answer, style) else None
 
     if decision.target == "cloud":
-        answer = safe_answer(ask_cloud(prompt))
+        answer = safe_answer(ask_cloud_with_tools(prompt))
         if answer:
             return answer, "cloud"
 
-        repaired = safe_answer(ask_cloud(_language_repair_prompt(prompt, style)))
+        repaired = safe_answer(ask_cloud_with_tools(_language_repair_prompt(prompt, style)))
         if repaired:
             return repaired, "cloud_repair"
 
