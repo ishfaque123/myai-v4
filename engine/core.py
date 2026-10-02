@@ -62,11 +62,34 @@ def save_memory(session_id, history):
     )
 
 
+def _language_style(text):
+    value = (text or "").strip()
+    if not value:
+        return "English"
+    if re.search(r"[\\u0900-\\u097F]", value):
+        return "Hindi Devanagari"
+    if re.search(r"[\\u0600-\\u06FF]", value):
+        return "Urdu/Arabic script"
+    lower = value.lower()
+    roman_markers = (
+        "hai", "hain", "ka", "ki", "ke", "ko", "kya", "kyun",
+        "mujhe", "mera", "meri", "aap", "ap", "tum", "tumhai",
+        "kr", "karo", "krr", "nahi", "nhai", "abhi", "bta",
+        "bata", "chahiye", "sahi", "galh", "acha", "achha",
+        "wala", "wali", "boht", "bhai",
+    )
+    words = re.findall(r"[a-zA-Z]+", lower)
+    if any(word in roman_markers for word in words):
+        return "Roman Urdu/Hinglish"
+    return "English"
+
 def build_prompt(user_message, history, session_id):
     lines = [
         "You are Nivora AI, a helpful and accurate multilingual AI assistant.",
         "Your name is Nivora AI. If asked your name, say: My name is Nivora AI.",
+        f"Output language/style: {_language_style(user_message)}. Keep the same language, script, and style as the user; do not switch to another script unless the user does.",
         "Reply in the same language and style as the user.",
+        "Treat the current user message as the primary task. Do not turn a UI bug report into a generic tutorial unless the user asks for one.",
         "Answer the exact question directly and completely.",
         "For factual questions, give the complete factual answer, not a partial sentence.",
         "Keep answers short and natural unless the user asks for detail.",
