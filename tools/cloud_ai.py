@@ -3,6 +3,7 @@ import os
 import urllib.error
 import urllib.request
 
+from engine.reliability import run_with_retries
 from tools.registry import TOOL_DEFINITIONS, execute_tool_call
 
 HF_URL = "https://router.huggingface.co/v1/chat/completions"
@@ -72,6 +73,28 @@ def _execute_tool_call(tool_call):
     return execute_tool_call(tool_call)
 
 
+def _usable_message(data):
+    message = _message_from_response(data)
+    content = (message or {}).get("content") or ""
+    return bool(isinstance(content, str) and content.strip())
+
+
+def _request_model(model, messages, timeout=60, tools=None, tool_choice=None):
+    result = run_with_retries(
+        lambda: _post_chat_completion(
+            model,
+            messages,
+            timeout=timeout,
+            tools=tools,
+            tool_choice=tool_choice,
+        ),
+        attempts=2,
+        delay=0.15,
+        is_success=_usable_message if not tools else lambda data: bool(_message_from_response(data)),
+    )
+    return result.value
+
+
 def ask_cloud(prompt, timeout=60):
     user_prompt = str(prompt or "").strip()
     if not user_prompt:
@@ -83,7 +106,7 @@ def ask_cloud(prompt, timeout=60):
     ]
 
     for model in HF_MODELS:
-        data = _post_chat_completion(model, messages, timeout=timeout)
+        data = _request_model(model, messages, timeout=timeout)
         message = _message_from_response(data)
         content = (message or {}).get("content") or ""
         if isinstance(content, str) and content.strip():
@@ -105,15 +128,15 @@ def ask_cloud_with_tools(prompt, timeout=60, max_rounds=3, required_tool=None):
     for model in HF_MODELS:
         working = list(messages)
 
-        for _ in range(max(1, int(max_rounds))):
+        for round_index in range(max(1, int(max_rounds))):
             tool_choice = "auto"
-            if required_tool and _ == 0:
+            if required_tool and round_index == 0:
                 tool_choice = {
                     "type": "function",
                     "function": {"name": required_tool},
                 }
 
-            data = _post_chat_completion(
+            data = _request_model(
                 model,
                 working,
                 timeout=timeout,
