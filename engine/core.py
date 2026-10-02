@@ -201,7 +201,7 @@ def _generate_for_route(user, prompt):
 
     if decision.target == "web":
         answer = safe_answer(
-            ask_cloud_with_tools(prompt, required_tool="web_search")
+            ask_cloud_with_tools(prompt, required_tool="web_research")
         )
         if answer:
             return answer, model_plan[0].name
@@ -209,7 +209,7 @@ def _generate_for_route(user, prompt):
         repaired = safe_answer(
             ask_cloud_with_tools(
                 _language_repair_prompt(prompt, style),
-                required_tool="web_search",
+                required_tool="web_research",
             )
         )
         if repaired:
