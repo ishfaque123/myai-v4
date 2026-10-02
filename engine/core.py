@@ -185,6 +185,25 @@ def _generate_for_route(user, prompt):
     def safe_answer(answer):
         return answer if answer and _response_matches_style(answer, style) else None
 
+    if decision.target == "web":
+        answer = safe_answer(
+            ask_cloud_with_tools(prompt, required_tool="web_search")
+        )
+        if answer:
+            return answer, "web"
+
+        repaired = safe_answer(
+            ask_cloud_with_tools(
+                _language_repair_prompt(prompt, style),
+                required_tool="web_search",
+            )
+        )
+        if repaired:
+            return repaired, "web_repair"
+
+        answer = safe_answer(ask_cloud(prompt))
+        return answer, "cloud_fallback" if answer else "web_failed"
+
     if decision.target == "cloud":
         answer = safe_answer(ask_cloud_with_tools(prompt))
         if answer:
