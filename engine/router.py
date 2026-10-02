@@ -14,6 +14,11 @@ _CALCULATOR_PATTERNS = (
     r"\b(how much is|what is)\s+\d",
 )
 
+_TIME_PATTERNS = (
+    r"\b(current|today|date|time|year|month|day|clock)\b",
+    r"\b(kon sa year|kon sa month|kon si date|kitna time|kya date|aaj ki date)\b",
+)
+
 _WEB_PATTERNS = (
     r"\b(latest|current|today|tonight|recent|news|search|internet|online|source|sources|verify|fact[- ]check)\b",
     r"\b(aaj|abhi|halia|taaza|taza|khabar|khabrein|search karo|verify karo)\b",
@@ -61,6 +66,9 @@ def route_message(message):
 
     if len(text) >= 220:
         return Route("cloud", "long_request", 0.90)
+
+    if any(re.search(pattern, text) for pattern in _TIME_PATTERNS):
+        return Route("time", "current_date_or_time", 0.99)
 
     if any(re.search(pattern, text) for pattern in _WEB_PATTERNS):
         return Route("web", "current_or_web_information", 0.92)
