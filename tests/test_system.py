@@ -95,6 +95,7 @@ class TestNivoraSystem(unittest.TestCase):
             lambda _: "bad answer",
             verify=lambda _: False,
         )
+        self.assertIsNone(result.answer)
         self.assertEqual(result.status, "unverified")
         self.assertEqual(result.steps, 2)
 
@@ -131,6 +132,13 @@ class TestNivoraSystem(unittest.TestCase):
     def test_rag_returns_knowledge(self):
         context = build_rag_context("What is Nivora AI?")
         self.assertIn("Nivora AI", context)
+
+    def test_rag_exposes_ranked_sources(self):
+        from tools.rag import knowledge_sources
+        sources = knowledge_sources("What is Nivora AI?")
+        self.assertTrue(sources)
+        self.assertIn("source", sources[0])
+        self.assertIn("matched_terms", sources[0])
 
     def test_rag_ignores_common_words(self):
         context = build_rag_context("What is the answer?")
