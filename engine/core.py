@@ -12,6 +12,7 @@ from tools.qwen_tool import ask_qwen
 from tools.cloud_ai import ask_cloud, ask_cloud_with_tools
 from tools.calculator import calculate
 from engine.router import route_message
+from engine.model_manager import select_model_plan
 from memory.long_term import build_memory_context, remember_from_message
 from tools.rag import build_rag_context
 from feedback.evaluator import evaluate_response
@@ -182,6 +183,7 @@ def build_prompt(user_message, history, session_id):
 
 def _generate_for_route(user, prompt):
     decision = route_message(user)
+    model_plan = select_model_plan(decision.target)
     style = _language_style(user)
 
     def safe_answer(answer):
@@ -195,14 +197,14 @@ def _generate_for_route(user, prompt):
         return None
 
     if decision.target == "time":
-        return answer_time_query(user, style), "time"
+        return answer_time_query(user, style), model_plan[0].name
 
     if decision.target == "web":
         answer = safe_answer(
             ask_cloud_with_tools(prompt, required_tool="web_search")
         )
         if answer:
-            return answer, "web"
+            return answer, model_plan[0].name
 
         repaired = safe_answer(
             ask_cloud_with_tools(
@@ -211,37 +213,37 @@ def _generate_for_route(user, prompt):
             )
         )
         if repaired:
-            return repaired, "web_repair"
+            return repaired, f"{model_plan[0].name}_repair"
 
         answer = safe_answer(ask_cloud(prompt))
-        return answer, "cloud_fallback" if answer else "web_failed"
+        return answer, model_plan[0].name if answer else "web_failed"
 
     if decision.target == "cloud":
         answer = safe_answer(ask_cloud_with_tools(prompt))
         if answer:
-            return answer, "cloud"
+            return answer, model_plan[0].name
 
         repaired = safe_answer(
             ask_cloud_with_tools(_language_repair_prompt(prompt, style))
         )
         if repaired:
-            return repaired, "cloud_repair"
+            return repaired, f"{model_plan[0].name}_repair"
 
         answer = safe_answer(ask_qwen(prompt))
-        return answer, "local_fallback" if answer else "cloud_failed"
+        return answer, model_plan[-1].name if answer else "cloud_failed"
 
     answer = safe_answer(ask_qwen(prompt))
     if answer:
-        return answer, "local"
+        return answer, model_plan[0].name
 
     repaired = safe_answer(
         ask_qwen(_language_repair_prompt(prompt, style))
     )
     if repaired:
-        return repaired, "local_repair"
+        return repaired, f"{model_plan[0].name}_repair"
 
     answer = safe_answer(ask_cloud(prompt))
-    return answer, "cloud_fallback" if answer else "local_failed"
+    return answer, model_plan[-1].name if answer else "local_failed"
 
 
 def chat(message, session_id="default"):
@@ -295,6 +297,7 @@ def chat(message, session_id="default"):
             "router_target": decision.target,
             "router_reason": decision.reason,
             "router_confidence": decision.confidence,
+            "model_plan": [model.name for model in select_model_plan(decision.target)],
             "memory_used": bool(build_memory_context(sid)),
             "rag_used": bool(build_rag_context(user)),
             "agent_status": result.status,
