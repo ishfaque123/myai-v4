@@ -18,13 +18,13 @@ class AgentResult:
 
 
 class AgentCore:
-    """Small, bounded agent loop for Nivora AI.
+    """Bounded agent loop for Nivora AI.
 
-    Deterministic local tools run before model generation. Cloud model
-    function-calling is handled by the cloud tool loop.
+    The loop follows observe -> tool/action -> generate -> verify, with a
+    strict step limit. Tool failures never escape the agent boundary.
     """
 
-    def __init__(self, tools=(), max_steps=2):
+    def __init__(self, tools=(), max_steps=3):
         self.tools = tuple(tools)
         self.max_steps = max(1, int(max_steps))
 
@@ -38,22 +38,43 @@ class AgentCore:
                 return result, tool.name
         return None, None
 
-    def run(self, message, generate):
+    def run(self, message, generate, verify=None):
         user = (message or "").strip()
         if not user:
             return AgentResult(None, None, 0, "empty")
 
-        if self.max_steps >= 1:
+        steps = 0
+
+        if steps < self.max_steps:
+            steps += 1
             result, tool_name = self._find_tool_result(user)
             if result is not None:
-                return AgentResult(result, tool_name, 1, "local_tool")
+                if verify is None or verify(result):
+                    return AgentResult(result, tool_name, steps, "tool_verified")
+                if steps >= self.max_steps:
+                    return AgentResult(None, tool_name, steps, "tool_rejected")
 
-        if self.max_steps >= 2:
+        last_answer = None
+        for _ in range(self.max_steps - steps):
+            steps += 1
             try:
                 answer = generate(user)
             except Exception:
                 answer = None
-            if answer:
-                return AgentResult(answer, None, 2, "model")
 
-        return AgentResult(None, None, self.max_steps, "failed")
+            if answer:
+                last_answer = answer
+                try:
+                    valid = True if verify is None else bool(verify(answer))
+                except Exception:
+                    valid = False
+                if valid:
+                    status = "model_verified" if verify is not None else "model"
+                    return AgentResult(answer, None, steps, status)
+
+        return AgentResult(
+            last_answer,
+            None,
+            steps,
+            "unverified" if last_answer else "failed",
+        )
