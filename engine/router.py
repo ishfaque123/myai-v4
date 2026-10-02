@@ -15,7 +15,7 @@ _CALCULATOR_PATTERNS = (
 )
 
 _TIME_PATTERNS = (
-    r"\b(current|today|date|time|year|month|day|clock)\b",
+    r"\b(date|time|year|month|day|clock|saal|sall|waqt|tareekh)\b",
     r"\b(kon sa year|kon sa month|kon si date|kitna time|kya date|aaj ki date)\b",
 )
 
