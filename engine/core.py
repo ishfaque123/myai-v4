@@ -16,6 +16,7 @@ from memory.long_term import build_memory_context, remember_from_message
 from tools.rag import build_rag_context
 from feedback.evaluator import evaluate_response
 from engine.quality import clean_response, is_usable_response
+from tools.time_tool import answer_time_query
 
 MEMORY_DIR = BASE / "memory" / "sessions"
 MEMORY_DIR.mkdir(parents=True, exist_ok=True)
@@ -192,6 +193,9 @@ def _generate_for_route(user, prompt):
         ):
             return cleaned
         return None
+
+    if decision.target == "time":
+        return answer_time_query(user, style), "time"
 
     if decision.target == "web":
         answer = safe_answer(
