@@ -15,6 +15,7 @@ from engine.router import route_message
 from memory.long_term import build_memory_context, remember_from_message
 from tools.rag import build_rag_context
 from feedback.evaluator import evaluate_response
+from engine.quality import clean_response, is_usable_response
 
 MEMORY_DIR = BASE / "memory" / "sessions"
 MEMORY_DIR.mkdir(parents=True, exist_ok=True)
@@ -183,7 +184,14 @@ def _generate_for_route(user, prompt):
     style = _language_style(user)
 
     def safe_answer(answer):
-        return answer if answer and _response_matches_style(answer, style) else None
+        cleaned = clean_response(answer)
+        if is_usable_response(
+            user,
+            cleaned,
+            style_checker=lambda value: _response_matches_style(value, style),
+        ):
+            return cleaned
+        return None
 
     if decision.target == "web":
         answer = safe_answer(
