@@ -14,6 +14,11 @@ _CALCULATOR_PATTERNS = (
     r"\b(how much is|what is)\s+\d",
 )
 
+_WEB_PATTERNS = (
+    r"\b(latest|current|today|tonight|recent|news|search|internet|online|source|sources|verify|fact[- ]check)\b",
+    r"\b(aaj|abhi|halia|taaza|taza|khabar|khabrein|search karo|verify karo)\b",
+)
+
 _CLOUD_PATTERNS = (
     r"\b(compare|difference|analy[sz]e|analysis|research|debug|architecture|algorithm)\b",
     r"\b(code|program|python|javascript|typescript|api|database|github|sql|regex)\b",
@@ -56,6 +61,9 @@ def route_message(message):
 
     if len(text) >= 220:
         return Route("cloud", "long_request", 0.90)
+
+    if any(re.search(pattern, text) for pattern in _WEB_PATTERNS):
+        return Route("web", "current_or_web_information", 0.92)
 
     if any(re.search(pattern, text) for pattern in _CLOUD_PATTERNS):
         return Route("cloud", "complex_or_reasoning_task", 0.88)
