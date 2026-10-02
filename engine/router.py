@@ -29,6 +29,7 @@ _SIMPLE_PATTERNS = (
 
 _KNOWLEDGE_PATTERNS = (
     r"\b(what is|who is|when was|where is|capital of|define|meaning of)\b",
+    r"\b(kya hai|kon hai|kab tha|kahan hai|kiya hai)\b",
 )
 
 _QUESTION_STARTERS = (
