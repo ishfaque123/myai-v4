@@ -66,9 +66,9 @@ def _language_style(text):
     value = (text or "").strip()
     if not value:
         return "English"
-    if re.search(r"[\\u0900-\\u097F]", value):
+    if re.search(r"[\u0900-\u097F]", value):
         return "Hindi Devanagari"
-    if re.search(r"[\\u0600-\\u06FF]", value):
+    if re.search(r"[\u0600-\u06FF]", value):
         return "Urdu/Arabic script"
     lower = value.lower()
     roman_markers = (
@@ -85,8 +85,8 @@ def _language_style(text):
 
 def _response_matches_style(text, style):
     value = text or ""
-    has_devanagari = bool(re.search(r"[\\u0900-\\u097F]", value))
-    has_arabic = bool(re.search(r"[\\u0600-\\u06FF]", value))
+    has_devanagari = bool(re.search(r"[\u0900-\u097F]", value))
+    has_arabic = bool(re.search(r"[\u0600-\u06FF]", value))
 
     if style == "Hindi Devanagari":
         return not has_arabic
