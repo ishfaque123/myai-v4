@@ -94,7 +94,7 @@ _SYSTEM_PROMPT = (
 )
 
 
-def _post_chat_completion(model, messages, timeout=60, tools=None):
+def _post_chat_completion(model, messages, timeout=60, tools=None, tool_choice=None):
     token = os.getenv("HF_TOKEN")
     if not token:
         return None
@@ -108,7 +108,7 @@ def _post_chat_completion(model, messages, timeout=60, tools=None):
     }
     if tools:
         payload["tools"] = list(tools)
-        payload["tool_choice"] = "auto"
+        payload["tool_choice"] = tool_choice or "auto"
 
     request = urllib.request.Request(
         HF_URL,
@@ -197,7 +197,7 @@ def ask_cloud(prompt, timeout=60):
     return None
 
 
-def ask_cloud_with_tools(prompt, timeout=60, max_rounds=3):
+def ask_cloud_with_tools(prompt, timeout=60, max_rounds=3, required_tool=None):
     user_prompt = str(prompt or "").strip()
     if not user_prompt:
         return None
@@ -211,11 +211,19 @@ def ask_cloud_with_tools(prompt, timeout=60, max_rounds=3):
         working = list(messages)
 
         for _ in range(max(1, int(max_rounds))):
+            tool_choice = "auto"
+            if required_tool and _ == 0:
+                tool_choice = {
+                    "type": "function",
+                    "function": {"name": required_tool},
+                }
+
             data = _post_chat_completion(
                 model,
                 working,
                 timeout=timeout,
                 tools=TOOL_DEFINITIONS,
+                tool_choice=tool_choice,
             )
             message = _message_from_response(data)
             if not message:
