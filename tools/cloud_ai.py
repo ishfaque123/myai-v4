@@ -68,6 +68,10 @@ def _tool_calls(message):
     return calls if isinstance(calls, list) else []
 
 
+def _execute_tool_call(tool_call):
+    return execute_tool_call(tool_call)
+
+
 def ask_cloud(prompt, timeout=60):
     user_prompt = str(prompt or "").strip()
     if not user_prompt:
