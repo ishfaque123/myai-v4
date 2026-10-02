@@ -70,18 +70,39 @@ def _language_style(text):
         return "Hindi Devanagari"
     if re.search(r"[\u0600-\u06FF]", value):
         return "Urdu/Arabic script"
+
     lower = value.lower()
+    sindhi_markers = (
+        "sindhi", "galh", "aahe", "aahiyan", "tho", "thi", "thea",
+        "maan", "tawhan", "tuhnjo", "cha", "chha", "kandho", "karyo",
+    )
     roman_markers = (
         "hai", "hain", "ka", "ki", "ke", "ko", "kya", "kyun",
         "mujhe", "mera", "meri", "aap", "ap", "tum", "tumhai",
         "kr", "karo", "krr", "nahi", "nhai", "abhi", "bta",
-        "bata", "chahiye", "sahi", "galh", "acha", "achha",
-        "wala", "wali", "boht", "bhai",
+        "bata", "chahiye", "sahi", "acha", "achha", "wala", "wali",
+        "boht", "bhai", "mujh", "mujhe", "baare", "bara", "bari",
+        "mai", "mein", "do", "dee", "de", "sedha", "seedha",
     )
     words = re.findall(r"[a-zA-Z]+", lower)
+
+    if any(word in sindhi_markers for word in words):
+        return "Sindhi Roman"
     if any(word in roman_markers for word in words):
         return "Roman Urdu/Hinglish"
     return "English"
+
+
+def _is_short_request(text):
+    lower = (text or "").lower()
+    return bool(
+        re.search(
+            r"\b(short|brief|briefly|sedha|seedha|sirf|bas|chhota|"
+            r"thora|thori|2.?3 lines?|few lines?|one line)\b",
+            lower,
+        )
+    )
+
 
 def _response_matches_style(text, style):
     value = text or ""
@@ -92,7 +113,7 @@ def _response_matches_style(text, style):
         return not has_arabic
     if style == "Urdu/Arabic script":
         return not has_devanagari
-    if style in ("English", "Roman Urdu/Hinglish"):
+    if style in ("English", "Roman Urdu/Hinglish", "Sindhi Roman"):
         return not has_devanagari and not has_arabic
     return True
 
@@ -100,32 +121,41 @@ def _response_matches_style(text, style):
 def _language_repair_prompt(prompt, style):
     return (
         f"{prompt}\n\n"
-        f"IMPORTANT OUTPUT CHECK: Your previous response used the wrong script. "
-        f"The required output style is {style}. "
-        f"Return the answer again using only the required language/script. "
-        f"Do not use Hindi Devanagari unless the required style is Hindi Devanagari. "
-        f"Do not use Urdu/Arabic script unless the required style is Urdu/Arabic script. "
-        f"Return only the corrected answer."
+        f"IMPORTANT OUTPUT CHECK: The required output style is {style}. "
+        f"Return the answer again using only that language/script. "
+        f"Do not use Hindi Devanagari or Urdu/Arabic script when the required "
+        f"style uses Latin letters. Return only the corrected answer."
     )
 
 
 def build_prompt(user_message, history, session_id):
+    style = _language_style(user_message)
+    short = _is_short_request(user_message)
+
     lines = [
         "You are Nivora AI, a helpful and accurate multilingual AI assistant.",
         "Your name is Nivora AI. If asked your name, say: My name is Nivora AI.",
-        f"Output language/style: {_language_style(user_message)}. Keep the same language, script, and style as the user; do not switch to another script unless the user does.",
-        "If the target style is English or Roman Urdu/Hinglish, use Latin letters only. Never output Hindi Devanagari characters unless the user used Devanagari.",
-        "Do not translate English or Roman Urdu/Hinglish into Hindi, Urdu, or another script.",
-        "Reply in the same language and style as the user.",
-        "Treat the current user message as the primary task. Do not turn a UI bug report into a generic tutorial unless the user asks for one.",
+        f"Output language/style: {style}. Keep exactly the same language, script, and style as the user.",
+        "If the target style uses Latin letters, use Latin letters only.",
+        "Do not translate Roman Urdu/Hinglish or Sindhi Roman into Hindi or Urdu script.",
         "Answer the exact question directly and completely.",
-        "For factual questions, give the complete factual answer, not a partial sentence.",
-        "Keep answers short and natural unless the user asks for detail.",
-        "Do not repeat the user's question or leave sentences incomplete.",
+        "Do not repeat the user's question.",
         "If unsure about a fact, say so instead of inventing an answer.",
+        "Keep answers short and natural unless the user asks for detail.",
+    ]
+
+    if short:
+        lines.extend([
+            "SHORT-ANSWER MODE IS ON.",
+            "Give only the essential answer, preferably 1-4 short sentences.",
+            "Do not add a long explanation, tips, or conclusion unless requested.",
+        ])
+
+    lines.extend([
+        "Treat the current user message as the primary task.",
         "Founder of Nivora AI: Ishfaque Ahmed, from Thari Mirwah, Khairpur, Sindh, Pakistan.",
         "",
-    ]
+    ])
 
     memory_context = build_memory_context(session_id)
     if memory_context:
@@ -160,7 +190,9 @@ def _generate_for_route(user, prompt):
         if answer:
             return answer, "cloud"
 
-        repaired = safe_answer(ask_cloud_with_tools(_language_repair_prompt(prompt, style)))
+        repaired = safe_answer(
+            ask_cloud_with_tools(_language_repair_prompt(prompt, style))
+        )
         if repaired:
             return repaired, "cloud_repair"
 
@@ -171,7 +203,9 @@ def _generate_for_route(user, prompt):
     if answer:
         return answer, "local"
 
-    repaired = safe_answer(ask_qwen(_language_repair_prompt(prompt, style)))
+    repaired = safe_answer(
+        ask_qwen(_language_repair_prompt(prompt, style))
+    )
     if repaired:
         return repaired, "local_repair"
 
