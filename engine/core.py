@@ -83,6 +83,32 @@ def _language_style(text):
         return "Roman Urdu/Hinglish"
     return "English"
 
+def _response_matches_style(text, style):
+    value = text or ""
+    has_devanagari = bool(re.search(r"[\\u0900-\\u097F]", value))
+    has_arabic = bool(re.search(r"[\\u0600-\\u06FF]", value))
+
+    if style == "Hindi Devanagari":
+        return not has_arabic
+    if style == "Urdu/Arabic script":
+        return not has_devanagari
+    if style in ("English", "Roman Urdu/Hinglish"):
+        return not has_devanagari and not has_arabic
+    return True
+
+
+def _language_repair_prompt(prompt, style):
+    return (
+        f"{prompt}\n\n"
+        f"IMPORTANT OUTPUT CHECK: Your previous response used the wrong script. "
+        f"The required output style is {style}. "
+        f"Return the answer again using only the required language/script. "
+        f"Do not use Hindi Devanagari unless the required style is Hindi Devanagari. "
+        f"Do not use Urdu/Arabic script unless the required style is Urdu/Arabic script. "
+        f"Return only the corrected answer."
+    )
+
+
 def build_prompt(user_message, history, session_id):
     lines = [
         "You are Nivora AI, a helpful and accurate multilingual AI assistant.",
@@ -124,18 +150,32 @@ def build_prompt(user_message, history, session_id):
 
 def _generate_for_route(user, prompt):
     decision = route_message(user)
+    style = _language_style(user)
+
+    def safe_answer(answer):
+        return answer if answer and _response_matches_style(answer, style) else None
 
     if decision.target == "cloud":
-        answer = ask_cloud(prompt)
+        answer = safe_answer(ask_cloud(prompt))
         if answer:
             return answer, "cloud"
-        answer = ask_qwen(prompt)
+
+        repaired = safe_answer(ask_cloud(_language_repair_prompt(prompt, style)))
+        if repaired:
+            return repaired, "cloud_repair"
+
+        answer = safe_answer(ask_qwen(prompt))
         return answer, "local_fallback" if answer else "cloud_failed"
 
-    answer = ask_qwen(prompt)
+    answer = safe_answer(ask_qwen(prompt))
     if answer:
         return answer, "local"
-    answer = ask_cloud(prompt)
+
+    repaired = safe_answer(ask_qwen(_language_repair_prompt(prompt, style)))
+    if repaired:
+        return repaired, "local_repair"
+
+    answer = safe_answer(ask_cloud(prompt))
     return answer, "cloud_fallback" if answer else "local_failed"
 
 
