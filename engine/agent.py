@@ -73,7 +73,7 @@ class AgentCore:
                     return AgentResult(answer, None, steps, status)
 
         return AgentResult(
-            last_answer,
+            None,
             None,
             steps,
             "unverified" if last_answer else "failed",
