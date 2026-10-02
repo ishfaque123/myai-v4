@@ -1,6 +1,8 @@
 import unittest
+from unittest.mock import patch
 
-from tools.cloud_ai import TOOL_DEFINITIONS, _execute_tool_call
+from tools.cloud_ai import TOOL_DEFINITIONS, _execute_tool_call, ask_cloud
+from engine.reliability import run_with_retries
 
 
 class TestCloudTools(unittest.TestCase):
@@ -82,6 +84,42 @@ class TestCloudTools(unittest.TestCase):
     def test_web_research_rejects_invalid_url(self):
         from tools.web_research import fetch_webpage
         self.assertEqual(fetch_webpage("not-a-url"), "")
+
+    def test_retry_succeeds_after_transient_failure(self):
+        calls = {"count": 0}
+
+        def operation():
+            calls["count"] += 1
+            if calls["count"] == 1:
+                raise TimeoutError()
+            return "ok"
+
+        result = run_with_retries(operation, attempts=2, delay=0)
+        self.assertEqual(result.value, "ok")
+        self.assertEqual(result.attempts, 2)
+        self.assertEqual(result.reason, "ok")
+
+    def test_retry_stops_after_bound(self):
+        calls = {"count": 0}
+
+        def operation():
+            calls["count"] += 1
+            return None
+
+        result = run_with_retries(operation, attempts=2, delay=0)
+        self.assertIsNone(result.value)
+        self.assertEqual(result.attempts, 2)
+
+    @patch("tools.cloud_ai._post_chat_completion")
+    def test_empty_cloud_content_falls_through_to_next_model(self, mock_post):
+        mock_post.side_effect = [
+            {"choices": [{"message": {"content": ""}}]},
+            {"choices": [{"message": {"content": ""}}]},
+            {"choices": [{"message": {"content": "Nivora response"}}]},
+        ]
+        answer = ask_cloud("hello", timeout=1)
+        self.assertEqual(answer, "Nivora response")
+        self.assertEqual(mock_post.call_count, 3)
 
 
 if __name__ == "__main__":
