@@ -21,6 +21,24 @@ class TestNivoraSystem(unittest.TestCase):
         route = route_message("Explain how an API database architecture works in detail.")
         self.assertEqual(route.target, "cloud")
 
+    def test_router_keeps_simple_question_local(self):
+        route = route_message("How many days are in a week?")
+        self.assertEqual(route.target, "local")
+
+    def test_router_detects_calculation(self):
+        route = route_message("Calculate 25 * 4")
+        self.assertEqual(route.target, "calculator")
+
+    def test_router_detects_knowledge_query(self):
+        route = route_message("What is Nivora AI?")
+        self.assertEqual(route.target, "local")
+        self.assertEqual(route.reason, "knowledge_or_rag")
+
+    def test_router_keeps_long_complex_request_cloud(self):
+        message = "Please compare " + ("different AI architectures and explain the tradeoffs " * 30)
+        route = route_message(message)
+        self.assertEqual(route.target, "cloud")
+
     def test_agent_uses_tool_before_model(self):
         calls = []
 
