@@ -4,6 +4,7 @@ import urllib.error
 import urllib.request
 
 from tools.calculator import calculate
+from tools.rag import build_rag_context
 
 HF_URL = "https://router.huggingface.co/v1/chat/completions"
 HF_MODELS = (
@@ -30,11 +31,32 @@ TOOL_DEFINITIONS = (
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "knowledge_search",
+            "description": "Search Nivora AI's trusted local knowledge base for relevant information.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The knowledge question or topic to search for.",
+                    }
+                },
+                "required": ["query"],
+                "additionalProperties": False,
+            },
+        },
+    },
 )
 
 _TOOL_EXECUTORS = {
     "calculator": lambda arguments: calculate(
         str(arguments.get("expression", ""))
+    ),
+    "knowledge_search": lambda arguments: build_rag_context(
+        str(arguments.get("query", ""))
     ),
 }
 
