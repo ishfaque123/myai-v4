@@ -45,6 +45,18 @@ class TestNivoraSystem(unittest.TestCase):
         route = route_message("What is the latest news about Pakistan today?")
         self.assertEqual(route.target, "web")
 
+    def test_router_detects_domain_lookup_as_web(self):
+        route = route_message("Dksmm.com ke owner ka name search karo")
+        self.assertEqual(route.target, "web")
+
+    def test_router_detects_context_followup(self):
+        route = route_message("Founder")
+        self.assertEqual(route.target, "cloud")
+
+    def test_router_detects_picture_followup(self):
+        route = route_message("Show me pictures")
+        self.assertEqual(route.target, "cloud")
+
     def test_router_detects_knowledge_query(self):
         route = route_message("What is Nivora AI?")
         self.assertEqual(route.target, "local")
