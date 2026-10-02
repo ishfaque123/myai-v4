@@ -100,14 +100,5 @@ else if(chats.length){const latest=chats[chats.length-1];sessionId=latest.id;loa
   bubble.className="bubble thinking";bubble.innerHTML='<span>Generating</span><span class="thinking-dots"><i></i><i></i><i></i></span>';
   return new Promise(resolve=>setTimeout(()=>{bubble.className="bubble";renderFormattedAnswer(bubble,text);scrollBottom();resolve({row,bubble})},Math.max(180,Math.min(600,String(text||"").length*3))));
 }
-async function ask(){const input=document.getElementById("message"),send=document.getElementById("send"),message=input.value.trim();if(!message)return;input.value="";input.style.height="42px";send.disabled=true;const c=currentChat();addMessage("user",message);c.messages.push({role:"user",text:message});if(c.title==="New chat")c.title=message.slice(0,38);save();renderHistory();addThinking();try{const r=await fetch("/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message,session_id:sessionId})});const d=await r.json();removeThinking();const answer=d.reply||"I could not generate a response.";await addMessage("ai",answer,true);c.messages.push({role:"ai",text:answer});showTrace(d.trace||{});save()}catch(e){removeThinking();addMessage("ai","Something went wrong. Please try again")}finally{send.disabled=false;input.focus()}}
-document.getElementById("form").addEventListener("submit",e=>{e.preventDefault();ask()});
-document.getElementById("message").addEventListener("input",e=>{e.target.style.height="42px";e.target.style.height=Math.min(e.target.scrollHeight,150)+"px"});
-document.getElementById("message").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();ask()}});
-document.getElementById("topMenuBtn").addEventListener("click",e=>{e.stopPropagation();toggleSide()});
-document.addEventListener("click",e=>{if(!e.target.closest("#sidePanel")&&!e.target.closest("#topMenuBtn"))toggleSide(false)});
-renderHistory();
-const active=chats.find(c=>c.id===sessionId);
-if(active&&active.messages&&active.messages.length)loadChat(sessionId);
-else if(chats.length){const latest=chats[chats.length-1];sessionId=latest.id;loadChat(sessionId)}
+
 </script></body></html>
