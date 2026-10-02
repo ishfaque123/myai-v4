@@ -22,6 +22,12 @@ _TIME_PATTERNS = (
 _WEB_PATTERNS = (
     r"\b(latest|current|today|tonight|recent|news|search|internet|online|source|sources|verify|fact[- ]check)\b",
     r"\b(aaj|abhi|halia|taaza|taza|khabar|khabrein|search karo|verify karo)\b",
+    r"\bhttps?://|\b(?:[a-z0-9-]+\.)+(?:com|net|org|pk|io|ai|online|site)\b",
+)
+
+_CONTEXT_FOLLOWUP_PATTERNS = (
+    r"^(founder|co[- ]?founder|ceo|owner|dono|both|pictures?|photo|show me|"
+    r"who is he|who is she|aur|phir|then|why|q|kyun)\b",
 )
 
 _CLOUD_PATTERNS = (
@@ -72,6 +78,9 @@ def route_message(message):
 
     if any(re.search(pattern, text) for pattern in _WEB_PATTERNS):
         return Route("web", "current_or_web_information", 0.92)
+
+    if any(re.search(pattern, text) for pattern in _CONTEXT_FOLLOWUP_PATTERNS):
+        return Route("cloud", "conversation_context_followup", 0.86)
 
     if any(re.search(pattern, text) for pattern in _CLOUD_PATTERNS):
         return Route("cloud", "complex_or_reasoning_task", 0.88)
