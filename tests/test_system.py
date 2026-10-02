@@ -14,6 +14,7 @@ from router import route_message
 from engine.core import _language_style, _is_short_request
 from engine.quality import clean_response, is_usable_response
 from tools.rag import build_rag_context
+from tools.time_tool import answer_time_query
 from feedback.evaluator import evaluate_response
 import feedback.store as feedback_store
 
@@ -30,6 +31,15 @@ class TestNivoraSystem(unittest.TestCase):
     def test_router_detects_calculation(self):
         route = route_message("Calculate 25 * 4")
         self.assertEqual(route.target, "calculator")
+
+    def test_router_detects_time_request(self):
+        route = route_message("Kon sa year chal raha hai aur date kya hai?")
+        self.assertEqual(route.target, "time")
+
+    def test_time_answer_uses_live_clock(self):
+        answer = answer_time_query("Kon sa year chal raha hai aur date kya hai?", "Roman Urdu/Hinglish")
+        self.assertRegex(answer, r"\d{2} [A-Za-z]+ \d{4}")
+        self.assertIn("hai", answer)
 
     def test_router_detects_web_request(self):
         route = route_message("What is the latest news about Pakistan today?")
