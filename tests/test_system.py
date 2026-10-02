@@ -154,6 +154,29 @@ class TestNivoraSystem(unittest.TestCase):
     def test_memory_blocks_sensitive_fact(self):
         self.assertIsNone(extract_fact("my password is 123456"))
 
+
+    def test_memory_extracts_structured_fact(self):
+        fact = extract_fact("my name is Ishfaque")
+        self.assertEqual(fact["key"], "name")
+        self.assertEqual(fact["value"], "Ishfaque")
+        self.assertGreaterEqual(fact["confidence"], 0.9)
+
+    def test_memory_updates_same_fact_key(self):
+        import memory.long_term as memory_store
+        from memory.long_term import load_profile, remember_from_message
+        with tempfile.TemporaryDirectory() as temp_dir:
+            old_dir = memory_store.PROFILE_DIR
+            memory_store.PROFILE_DIR = Path(temp_dir)
+            try:
+                remember_from_message("memory-test", "my name is First")
+                remember_from_message("memory-test", "my name is Second")
+                facts = load_profile("memory-test")["facts"]
+                names = [item for item in facts if item["key"] == "name"]
+                self.assertEqual(len(names), 1)
+                self.assertEqual(names[0]["value"], "Second")
+            finally:
+                memory_store.PROFILE_DIR = old_dir
+
     def test_response_evaluation(self):
         result = evaluate_response(
             "What is Nivora AI?",
