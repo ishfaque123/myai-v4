@@ -10,7 +10,8 @@ if str(ENGINE) not in sys.path:
 
 from agent import AgentCore, Tool
 from memory.long_term import extract_fact
-from router import route_message\nfrom engine.core import _language_style, _is_short_request
+from router import route_message
+from engine.core import _language_style, _is_short_request
 from tools.rag import build_rag_context
 from feedback.evaluator import evaluate_response
 import feedback.store as feedback_store
@@ -28,6 +29,10 @@ class TestNivoraSystem(unittest.TestCase):
     def test_router_detects_calculation(self):
         route = route_message("Calculate 25 * 4")
         self.assertEqual(route.target, "calculator")
+
+    def test_router_detects_web_request(self):
+        route = route_message("What is the latest news about Pakistan today?")
+        self.assertEqual(route.target, "web")
 
     def test_router_detects_knowledge_query(self):
         route = route_message("What is Nivora AI?")
