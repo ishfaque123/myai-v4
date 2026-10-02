@@ -12,6 +12,7 @@ from agent import AgentCore, Tool
 from memory.long_term import extract_fact
 from router import route_message
 from engine.core import _language_style, _is_short_request
+from engine.quality import clean_response, is_usable_response
 from tools.rag import build_rag_context
 from feedback.evaluator import evaluate_response
 import feedback.store as feedback_store
@@ -54,6 +55,13 @@ class TestNivoraSystem(unittest.TestCase):
     def test_short_request_is_detected(self):
         self.assertTrue(_is_short_request("Pakistan ke bare mein short mein batao"))
         self.assertTrue(_is_short_request("Koy code lekh kr doo short Mai py ka"))
+
+    def test_quality_layer_removes_thinking_and_prefix(self):
+        answer = clean_response("<think>hidden reasoning</think>Nivora AI: Final answer")
+        self.assertEqual(answer, "Final answer")
+
+    def test_quality_layer_rejects_empty_answer(self):
+        self.assertFalse(is_usable_response("hello", ""))
 
     def test_agent_uses_tool_before_model(self):
         calls = []
